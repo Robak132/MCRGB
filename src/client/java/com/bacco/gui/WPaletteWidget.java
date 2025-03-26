@@ -4,7 +4,6 @@ import com.bacco.MCRGBClient;
 import com.bacco.Palette;
 import io.github.cottonmc.cotton.gui.client.BackgroundPainter;
 import io.github.cottonmc.cotton.gui.widget.TooltipBuilder;
-import io.github.cottonmc.cotton.gui.widget.WButton;
 import io.github.cottonmc.cotton.gui.widget.WPlainPanel;
 import io.github.cottonmc.cotton.gui.widget.data.HorizontalAlignment;
 import io.github.cottonmc.cotton.gui.widget.icon.TextureIcon;
@@ -29,7 +28,7 @@ public class WPaletteWidget extends WPlainPanel {
 
     MCRGBClient mcrgbClient;
     public Boolean editing = false;
-    WButton editButton = new WButton(editIcon){
+    WSmallButton editButton = new WSmallButton(editIcon){
         @Environment(EnvType.CLIENT)
         @Override
         public void addTooltip(TooltipBuilder tooltip) {
@@ -40,7 +39,7 @@ public class WPaletteWidget extends WPlainPanel {
     Identifier deleteIdentifier = Identifier.of("mcrgb", "delete.png");
     TextureIcon deleteIcon = new TextureIcon(deleteIdentifier);
 
-    WButton deleteButton = new WButton(deleteIcon){
+    WSmallButton deleteButton = new WSmallButton(deleteIcon){
         @Environment(EnvType.CLIENT)
         @Override
         public void addTooltip(TooltipBuilder tooltip) {
@@ -61,7 +60,7 @@ public class WPaletteWidget extends WPlainPanel {
             SavedColours.get(i).setInteractable(false);
             this.add(SavedColours.get(i), i*17, 0, 18, 18);
         }
-        this.add(editButton,(int)(8.6f*18),0,1,1);
+        this.add(editButton,(int)(8.6f*18),0,10,10);
         editButton.setSize(10,10);
         editButton.setIconSize(9);
         editButton.setAlignment(HorizontalAlignment.LEFT);

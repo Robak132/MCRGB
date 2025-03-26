@@ -38,14 +38,15 @@ public class ColourGui extends MCRGBBaseGui {
             return super.onMouseDrag(x, y, button, deltaX, deltaY);
         }
 
-        @Environment(EnvType.CLIENT)
-        @Override
-        public InputResult onMouseScroll(int x, int y, double hAmount, double vAmount) {
+       @Environment(EnvType.CLIENT)
+       @Override
+       public InputResult onMouseScroll(int x, int y, double vAmount) {
             PlaceSlots();
             setValue(getValue() + (int) -vAmount);
 		    return InputResult.PROCESSED;
             //return super.onMouseScroll(x, y, hAmount, vAmount);
         }
+
     };
     WPlainPanel labels = new WPlainPanel();
     WLabel rLabel = new WLabel(Text.translatable("ui.mcrgb.r_for_red"),0xFF0000);
@@ -152,7 +153,7 @@ public class ColourGui extends MCRGBBaseGui {
     ColourMode mode = ColourMode.RGB;
 
     @Environment(value=EnvType.CLIENT)
-    public ColourGui(net.minecraft.client.MinecraftClient client, MCRGBClient mcrgbClient, ColourVector launchColour){
+    public ColourGui(MinecraftClient client, MCRGBClient mcrgbClient, ColourVector launchColour){
         this.client = client;
         this.mcrgbClient = mcrgbClient;
         colourWheel = new WColourWheel(wheelIdentifier,0,0,1,1,client,this);
