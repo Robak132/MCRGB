@@ -49,9 +49,9 @@ public class ColourGui extends MCRGBBaseGui {
 
     };
     WPlainPanel labels = new WPlainPanel();
-    WLabel rLabel = new WLabel(Text.translatable("ui.mcrgb.r_for_red"),0xFF0000);
-    WLabel gLabel = new WLabel(Text.translatable("ui.mcrgb.g_for_green"),0x00FF00);
-    WLabel bLabel = new WLabel(Text.translatable("ui.mcrgb.b_for_blue"),0x0000FF);
+    WLabel rLabel = new WLabel(Text.translatable("ui.mcrgb.r_for_red"),0xFFFF0000);
+    WLabel gLabel = new WLabel(Text.translatable("ui.mcrgb.g_for_green"),0xFF00FF00);
+    WLabel bLabel = new WLabel(Text.translatable("ui.mcrgb.b_for_blue"),0xFF0000FF);
     WSlider rSlider = new WSlider(0, 255, Axis.VERTICAL);
     WSlider gSlider = new WSlider(0, 255, Axis.VERTICAL);
     WSlider bSlider = new WSlider(0, 255, Axis.VERTICAL);
@@ -286,11 +286,11 @@ public class ColourGui extends MCRGBBaseGui {
         switch (mode){
             case RGB:
                 rLabel.setText(Text.translatable("ui.mcrgb.r_for_red"));
-                rLabel.setColor(0xFF0000);
+                rLabel.setColor(0xFFFF0000);
                 gLabel.setText(Text.translatable("ui.mcrgb.g_for_green"));
-                gLabel.setColor(0x00FF00);
+                gLabel.setColor(0xFF00FF00);
                 bLabel.setText(Text.translatable("ui.mcrgb.b_for_blue"));
-                bLabel.setColor(0x0000FF);
+                bLabel.setColor(0xFF0000FF);
 
                 rSlider.setMinValue(0);
                 gSlider.setMinValue(0);
@@ -304,11 +304,11 @@ public class ColourGui extends MCRGBBaseGui {
                 break;
             case HSV:
                 rLabel.setText(Text.translatable("ui.mcrgb.h_for_hue_hsv"));
-                rLabel.setColor(0x3F3F3F);
+                rLabel.setColor(0xFF3F3F3F);
                 gLabel.setText(Text.translatable("ui.mcrgb.s_for_sat_hsv"));
-                gLabel.setColor(0x3F3F3F);
+                gLabel.setColor(0xFF3F3F3F);
                 bLabel.setText(Text.translatable("ui.mcrgb.v_for_val_hsv"));
-                bLabel.setColor(0x3F3F3F);
+                bLabel.setColor(0xFF3F3F3F);
                 rSlider.setMinValue(0);
                 gSlider.setMinValue(0);
                 bSlider.setMinValue(0);
@@ -321,11 +321,11 @@ public class ColourGui extends MCRGBBaseGui {
                 break;
             case HSL:
                 rLabel.setText(Text.translatable("ui.mcrgb.h_for_hue_hsl"));
-                rLabel.setColor(0x3F3F3F);
+                rLabel.setColor(0xFF3F3F3F);
                 gLabel.setText(Text.translatable("ui.mcrgb.s_for_sat_hsl"));
-                gLabel.setColor(0x3F3F3F);
+                gLabel.setColor(0xFF3F3F3F);
                 bLabel.setText(Text.translatable("ui.mcrgb.l_for_lit_hsl"));
-                bLabel.setColor(0x3F3F3F);
+                bLabel.setColor(0xFF3F3F3F);
                 rSlider.setMinValue(0);
                 gSlider.setMinValue(0);
                 bSlider.setMinValue(0);
@@ -640,6 +640,17 @@ public class ColourGui extends MCRGBBaseGui {
     public void ToggleColourWheel(Boolean isToggled){
         if(isToggled){
             mainPanel.remove(sliderArea);
+
+            //Remove and re-add inputs to workaround visual bug in 1.20.1 only
+            mainPanel.remove(rLabel);
+            mainPanel.remove(gLabel);
+            mainPanel.remove(bLabel);
+            mainPanel.add(rLabel, 1,1,1,1);
+            mainPanel.add(gLabel, 1,1,1,1);
+            mainPanel.add(bLabel, 1,1,1,1);
+            mainPanel.remove(inputs);
+            mainPanel.add(inputs,10,9,2,1);
+
             mainPanel.remove(armourSlots);
             mainPanel.add(colourWheel,11,2,6,6);
             mainPanel.add(wheelValueSlider,17,2,1,6);
