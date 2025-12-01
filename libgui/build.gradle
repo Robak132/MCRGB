@@ -1,0 +1,33 @@
+plugins {
+    id 'idea'
+    id 'java'
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '6.0.+'
+    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:1.20.1-47.1.0"
+    implementation "me.shedaniel.cloth:cloth-config-forge:11.1.136"
+    implementation "dev.su5ed.sinytra.fabric-api:fabric-api:0.92.6+1.11.14+1.20.1"
+}
+
+// Use Java 21 toolchain for compilation (supports modern syntax)
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+}
+
+minecraft {
+    mappings channel: 'parchment', version: '2023.10.08-1.20.2'
+    copyIdeResources = true
+    generateRunFolders = true
+    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // target bytecode Java 17 for runtime compatibility (drops preview features usage!)
+    options.compilerArgs.removeAll { it == '--enable-preview' }
+    options.release = 17
+}

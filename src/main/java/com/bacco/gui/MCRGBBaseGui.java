@@ -6,7 +6,7 @@ import io.github.cottonmc.cotton.gui.client.LightweightGuiDescription;
 import io.github.cottonmc.cotton.gui.widget.WGridPanel;
 import io.github.cottonmc.cotton.gui.widget.WSprite;
 import io.github.cottonmc.cotton.gui.widget.WTextField;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Identifier;
 
 public class MCRGBBaseGui extends LightweightGuiDescription {
@@ -16,7 +16,7 @@ public class MCRGBBaseGui extends LightweightGuiDescription {
 
     WSavedPalettesArea savedPalettesArea;
 
-    WTextField hexInput = new WTextField(Text.literal("#FFFFFF"));
+    WTextField hexInput = new WTextField(Component.literal("#FFFFFF"));
 
     ColourVector inputColour = new ColourVector(255,255,255);
 

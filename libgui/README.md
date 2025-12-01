@@ -1,0 +1,2 @@
+# Simplified LibGui port for Forge
+This directory contains a simplified version of the LibGui library, which has been ported for use with the Forge modding platform. The original LibGui library is designed for creating graphical user interfaces in Minecraft mods, and this port aims to provide similar functionality while being compatible with Forge.

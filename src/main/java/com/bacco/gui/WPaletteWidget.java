@@ -10,7 +10,7 @@ import io.github.cottonmc.cotton.gui.widget.icon.TextureIcon;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
+import net.minecraft.text.Component;
 import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
@@ -32,7 +32,7 @@ public class WPaletteWidget extends WPlainPanel {
         @Environment(EnvType.CLIENT)
         @Override
         public void addTooltip(TooltipBuilder tooltip) {
-            tooltip.add(Text.translatable("ui.mcrgb.edit_palette_info"));
+            tooltip.add(Component.translatable("ui.mcrgb.edit_palette_info"));
             super.addTooltip(tooltip);
         }
     };
@@ -43,7 +43,7 @@ public class WPaletteWidget extends WPlainPanel {
         @Environment(EnvType.CLIENT)
         @Override
         public void addTooltip(TooltipBuilder tooltip) {
-            tooltip.add(Text.translatable("ui.mcrgb.delete_palette_info"));
+            tooltip.add(Component.translatable("ui.mcrgb.delete_palette_info"));
             super.addTooltip(tooltip);
         }
     };

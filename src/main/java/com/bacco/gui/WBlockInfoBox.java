@@ -9,9 +9,9 @@ import io.github.cottonmc.cotton.gui.widget.data.Insets;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.MutableText;
+import net.minecraft.text.MutableComponent;
 import net.minecraft.text.Style;
-import net.minecraft.text.Text;
+import net.minecraft.text.Component;
 
 import java.util.ArrayList;
 
@@ -39,12 +39,12 @@ public class WBlockInfoBox extends WBox {
             ArrayList<Integer> colours = item.getSpriteDetails(i).getTextColours();
             if(strings.size() > 0){
                 for(int j = 0; j < strings.size(); j++){
-                    var text = Text.literal(strings.get(j));//.getWithStyle(Style.EMPTY.withColor(0x707070)).get(0);//.withColor(0x707070);
-                    MutableText text2 = (MutableText) Text.literal("⬛").getWithStyle(Style.EMPTY.withColor(colours.get(j))).get(0);
+                    var text = Component.literal(strings.get(j));//.getWithStyle(Style.EMPTY.withColor(0x707070)).get(0);//.withColor(0x707070);
+                    MutableComponent text2 = (MutableComponent) Component.literal("⬛").getWithStyle(Style.EMPTY.withColor(colours.get(j))).get(0);
                     if(j > 0){
                         text2.append(text.getWithStyle(Style.EMPTY.withColor(0x707070)).get(0));
                     }else{
-                        text2 = (MutableText) text.getWithStyle(Style.EMPTY.withColor(0x444444)).get(0);//.withColor(0x444444);
+                        text2 = (MutableComponent) text.getWithStyle(Style.EMPTY.withColor(0x444444)).get(0);//.withColor(0x444444);
                     }
                     TextRenderer textRenderer = Minecraft.getInstance().textRenderer;
                     int width = textRenderer.getWidth(text2);

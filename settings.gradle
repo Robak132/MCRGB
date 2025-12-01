@@ -2,7 +2,12 @@ pluginManagement {
 	repositories {
         maven { url = 'https://maven.minecraftforge.net' }
         maven { url "https://maven.shedaniel.me/" }
+        maven { url = 'https://maven.parchmentmc.org' }
         mavenCentral()
         gradlePluginPortal()
+        jcenter()
 	}
 }
+
+rootProject.name = 'MCRGB'
+include 'libgui'

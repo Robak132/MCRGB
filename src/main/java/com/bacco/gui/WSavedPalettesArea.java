@@ -11,14 +11,14 @@ import io.github.cottonmc.cotton.gui.widget.WPlainPanel;
 import io.github.cottonmc.cotton.gui.widget.data.HorizontalAlignment;
 import io.github.cottonmc.cotton.gui.widget.data.VerticalAlignment;
 import io.github.cottonmc.cotton.gui.widget.icon.TextureIcon;
-import net.minecraft.text.Text;
+import net.minecraft.text.Component;
 import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
 import java.util.function.BiConsumer;
 
 public class WSavedPalettesArea extends WPlainPanel {
-    WLabel savedColoursLabel = new WLabel(Text.translatable("ui.mcrgb.saved_colours"));
+    WLabel savedColoursLabel = new WLabel(Component.translatable("ui.mcrgb.saved_colours"));
     Identifier colourIdentifier = Identifier.of("mcrgb", "square.png");
 
     ArrayList<WColourPreviewIcon> SavedColours = new ArrayList<>();

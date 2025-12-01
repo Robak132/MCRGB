@@ -4,6 +4,40 @@ plugins {
     id 'java-library'
 	id 'maven-publish'
     id 'net.minecraftforge.gradle' version '6.0.+'
+    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+}
+
+// Configure all projects including subprojects
+allprojects {
+    apply plugin: 'java'
+    apply plugin: 'java-library'
+
+    repositories {
+        maven {
+            name = "Progwml6 maven"
+            url = 'https://dvs1.progwml6.com/files/maven/'
+        }
+        maven {
+            name = "curios"
+            url = 'https://maven.theillusivec4.top/'
+        }
+        maven { url = 'https://maven.blamejared.com' }
+        maven { url = 'https://www.cursemaven.com'  }
+        maven {
+            name = "CottonMC"
+            url = "https://server.bbkr.space/artifactory/libs-release"
+        }
+        maven { url = 'https://maven.parchmentmc.org' }
+        maven { url "https://maven.shedaniel.me/" }
+        maven { url "https://maven.terraformersmc.com/releases/" }
+        maven { url "https://maven.su5ed.dev/releases" }
+        maven { url "https://maven.minecraftforge.net" }
+        mavenCentral()
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+    }
 }
 
 version = project.mod_version
@@ -13,11 +47,10 @@ base {
 	archivesName = project.archives_base_name
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
 
 minecraft {
-    mappings channel: mapping_channel, version: mc_version
+    mappings channel: 'parchment', version: '2023.10.08-1.20.2'
     copyIdeResources = true
     generateRunFolders = true
     accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
@@ -61,40 +94,13 @@ minecraft {
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
-repositories {
-    flatDir { dir 'libs' }
-    maven {
-        name = "Progwml6 maven"
-        url = 'https://dvs1.progwml6.com/files/maven/'
-    }
-    maven {
-        name = "curios"
-        url = 'https://maven.theillusivec4.top/'
-    }
-    maven { url = 'https://maven.blamejared.com' }
-    maven { url = 'https://www.cursemaven.com'  }
-    maven {
-        name = "CottonMC"
-        url = "https://server.bbkr.space/artifactory/libs-release"
-    }
-    maven { url = 'https://maven.parchmentmc.org' }
-    maven { url "https://maven.shedaniel.me/" }
-    maven { url "https://maven.terraformersmc.com/releases/" }
-    maven { url "https://maven.su5ed.dev/releases" }
-    maven { url "https://maven.minecraftforge.net" }
-}
-
 dependencies {
     minecraft "net.minecraftforge:forge:1.20.1-47.1.0"
-//    implementation "org.parchmentmc:mcp-mappings:2024.06.19-1.20.1"
-//    implementation "me.shedaniel.cloth:cloth-config-forge:11.1.136"
-//    implementation ("io.github.cottonmc:LibGui:8.1.1+1.20.1") {
-//        transitive = false
-//    }
-//    compileOnly "dev.su5ed.sinytra.fabric-api:fabric-api:0.92.6+1.11.14+1.20.1"
-//    runtimeOnly fg.deobf("dev.su5ed.sinytra.fabric-api:fabric-api:0.92.6+1.11.14+1.20.1")
-}
+    implementation "me.shedaniel.cloth:cloth-config-forge:11.1.136"
+    implementation "dev.su5ed.sinytra.fabric-api:fabric-api:0.92.6+1.11.14+1.20.1"
 
+    implementation project(':libgui')
+}
 
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
@@ -128,8 +134,4 @@ tasks.named('jar', Jar).configure {
 
 tasks.register('cleanJar') {
     delete 'build/libs'
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
 }

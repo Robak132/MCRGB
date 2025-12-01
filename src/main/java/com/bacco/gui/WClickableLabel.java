@@ -7,9 +7,9 @@ import io.github.cottonmc.cotton.gui.widget.data.InputResult;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.MutableText;
+import net.minecraft.text.MutableComponent;
 import net.minecraft.text.Style;
-import net.minecraft.text.Text;
+import net.minecraft.text.Component;
 
 import java.util.List;
 
@@ -21,10 +21,10 @@ public class WClickableLabel extends WLabel {
     net.minecraft.client.Minecraft client;
     MCRGBClient mcrgbClient;
 
-    Text textUnhovered = text;
+    Component textUnhovered = text;
 
-    MutableText textHovered = (MutableText) Text.empty();
-    public WClickableLabel(Text text, ColourVector colour, MCRGBBaseGui gui) {
+    MutableComponent textHovered = (MutableComponent) Component.empty();
+    public WClickableLabel(Component text, ColourVector colour, MCRGBBaseGui gui) {
         super(text);
         this.colour = colour;
         this.client = gui.client;
@@ -32,13 +32,13 @@ public class WClickableLabel extends WLabel {
         this.gui = gui;
 
 
-        List<Text> components = text.getWithStyle(Style.EMPTY.withItalic(true).withUnderline(true));
-        List<Text> componentsBase = text.getWithStyle(Style.EMPTY);
+        List<Component> components = text.getWithStyle(Style.EMPTY.withItalic(true).withUnderline(true));
+        List<Component> componentsBase = text.getWithStyle(Style.EMPTY);
         if(components.size()>0)
             components.removeFirst();
             components.addFirst(componentsBase.getFirst());
 
-        for (Text component : components){
+        for (Component component : components){
                 textHovered.append(component);
         }
 

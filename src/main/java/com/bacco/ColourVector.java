@@ -3,7 +3,6 @@ package com.bacco;
 
 import java.awt.*;
 
-import static com.mojang.blaze3d.platform.NativeImage.Format.RGB;
 
 public class ColourVector {
     public int r, g, b;

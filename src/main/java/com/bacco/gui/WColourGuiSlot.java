@@ -14,10 +14,10 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
-import net.minecraft.text.MutableText;
+import net.minecraft.text.MutableComponent;
 import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.text.Component;
+import net.minecraft.util.ChatFormatting;
 import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
@@ -98,19 +98,19 @@ public class WColourGuiSlot extends WWidget{
    @Environment(EnvType.CLIENT)
    @Override
    public void addTooltip(TooltipBuilder tooltip) {
-      tooltip.add(Text.translatable(stack.getTranslationKey()));
+      tooltip.add(Component.translatable(stack.getTranslationKey()));
       IItemBlockColourSaver item = (IItemBlockColourSaver) stack.getItem();
 			for(int i = 0; i < item.getLength(); i++){
 				ArrayList<String> strings = item.getSpriteDetails(i).getStrings();
 					ArrayList<Integer> colours = item.getSpriteDetails(i).getTextColours();
 					if(strings.size() > 0){
                   for(int j = 0; j < strings.size(); j++){
-                     var text = Text.literal(strings.get(j)).formatted(Formatting.GRAY);
-                     MutableText text2 = (MutableText) Text.literal("⬛").getWithStyle(Style.EMPTY.withColor(colours.get(j))).get(0);
+                     var text = Component.literal(strings.get(j)).formatted(ChatFormatting.GRAY);
+                     MutableComponent text2 = (MutableComponent) Component.literal("⬛").getWithStyle(Style.EMPTY.withColor(colours.get(j))).get(0);
                      if(j > 0){
                         text2.append(text);
                      }else{
-                        text2 = text.formatted(Formatting.DARK_GRAY);
+                        text2 = text.formatted(ChatFormatting.DARK_GRAY);
                      }
                      
                      tooltip.add(text2);
