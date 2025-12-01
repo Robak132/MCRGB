@@ -1,6 +1,5 @@
 package io.github.cottonmc.cotton.gui.client;
 
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.util.Identifier;
 
@@ -11,7 +10,6 @@ import io.github.cottonmc.cotton.gui.widget.data.Texture;
 import juuxel.libninepatch.NinePatch;
 import juuxel.libninepatch.TextureRegion;
 
-import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
@@ -33,8 +31,8 @@ public interface BackgroundPainter {
 	/**
 	 * The {@code VANILLA} background painter draws a vanilla-like GUI panel using nine-patch textures.
 	 *
-	 * <p>This background painter uses {@code libgui:textures/gui/sprites/widget/panel_light.png} as the light texture and
-	 * {@code libgui:textures/gui/sprites/widget/panel_dark.png} as the dark texture.
+	 * <p>This background painter uses {@code libgui:textures/widget/panel_light.png} as the light texture and
+	 * {@code libgui:textures/widget/panel_dark.png} as the dark texture.
 	 *
 	 * <p>This background painter is the default painter for root panels.
 	 * 	 * You can override {@link io.github.cottonmc.cotton.gui.GuiDescription#addPainters()} to customize the painter yourself.
@@ -42,8 +40,8 @@ public interface BackgroundPainter {
 	 * @since 1.5.0
 	 */
 	public static BackgroundPainter VANILLA = createLightDarkVariants(
-			createGuiSprite(LibGuiCommon.id("widget/panel_light")),
-			createGuiSprite(LibGuiCommon.id("widget/panel_dark"))
+			createNinePatch(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/panel_light.png")),
+			createNinePatch(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/panel_dark.png"))
 	);
 
 	/**
@@ -52,9 +50,10 @@ public interface BackgroundPainter {
 	 * <p>For {@linkplain WItemSlot item slots}, this painter uses {@link WItemSlot#SLOT_TEXTURE libgui:textures/widget/item_slot.png}.
 	 */
 	public static BackgroundPainter SLOT = (context, left, top, panel) -> {
-		if (!(panel instanceof WItemSlot slot)) {
+		if (!(panel instanceof WItemSlot)) {
 			ScreenDrawing.drawBeveledPanel(context, left-1, top-1, panel.getWidth()+2, panel.getHeight()+2, 0xB8000000, 0x4C000000, 0xB8FFFFFF);
 		} else {
+			WItemSlot slot = (WItemSlot)panel;
 			for(int x = 0; x < slot.getWidth()/18; ++x) {
 				for(int y = 0; y < slot.getHeight()/18; ++y) {
 					int index = x + y * (slot.getWidth() / 18);
@@ -129,9 +128,6 @@ public interface BackgroundPainter {
 	/**
 	 * Creates a new nine-patch background painter with a custom configuration.
 	 *
-	 * <p>This method cannot be used for {@linkplain Texture.Type#GUI_SPRITE GUI sprites}. Instead, you can use the
-	 * vanilla nine-slice mechanism or use a standalone texture referring to the same file.
-	 *
 	 * @param texture      the background painter texture
 	 * @param configurator a consumer that configures the {@link NinePatch.Builder}
 	 * @return the created nine-patch background painter
@@ -139,13 +135,8 @@ public interface BackgroundPainter {
 	 * @see NinePatch
 	 * @see NinePatch.Builder
 	 * @see NinePatchBackgroundPainter
-	 * @throws IllegalArgumentException when the texture is not {@linkplain Texture.Type#STANDALONE standalone}
 	 */
 	public static NinePatchBackgroundPainter createNinePatch(Texture texture, Consumer<NinePatch.Builder<Identifier>> configurator) {
-		if (texture.type() != Texture.Type.STANDALONE) {
-			throw new IllegalArgumentException("Non-standalone texture " + texture + " cannot be used for nine-patch");
-		}
-
 		TextureRegion<Identifier> region = new TextureRegion<>(texture.image(), texture.u1(), texture.v1(), texture.u2(), texture.v2());
 		var builder = NinePatch.builder(region);
 		configurator.accept(builder);
@@ -166,20 +157,5 @@ public interface BackgroundPainter {
 			if (panel.shouldRenderInDarkMode()) dark.paintBackground(context, left, top, panel);
 			else light.paintBackground(context, left, top, panel);
 		};
-	}
-
-	/**
-	 * Creates a background painter that uses a texture from the GUI atlas.
-	 *
-	 * <p>This method can be used to draw tiled or nine-slice GUI sprites from resource packs
-	 * as a simpler and more data-driven alternative to {@link #createNinePatch(Identifier)}.
-	 *
-	 * @param texture the texture ID
-	 * @return a new background painter that uses a GUI sprite
-	 * @since 9.0.0
-	 */
-	static BackgroundPainter createGuiSprite(Identifier texture) {
-		Objects.requireNonNull(texture, "Texture cannot be null");
-		return (context, left, top, panel) -> context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, texture, left, top, panel.getWidth(), panel.getHeight());
 	}
 }

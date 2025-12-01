@@ -1,17 +1,22 @@
 package io.github.cottonmc.cotton.gui.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Style;
 import net.minecraft.util.Identifier;
 
-import io.github.cottonmc.cotton.gui.impl.mixin.client.DrawContextAccessor;
 import io.github.cottonmc.cotton.gui.widget.data.HorizontalAlignment;
 import io.github.cottonmc.cotton.gui.widget.data.Texture;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Matrix3x2fStack;
+import org.joml.Matrix4f;
 
 /**
  * {@code ScreenDrawing} contains utility methods for drawing contents on a screen.
@@ -100,45 +105,7 @@ public class ScreenDrawing {
 	 * @since 3.0.0
 	 */
 	public static void texturedRect(DrawContext context, int x, int y, int width, int height, Texture texture, int color, float opacity) {
-		switch (texture.type()) {
-			// Standalone textures: convert into ID + UVs
-			case STANDALONE -> texturedRect(context, x, y, width, height, texture.image(), texture.u1(), texture.v1(), texture.u2(), texture.v2(), color, opacity);
-
-			// GUI sprites: Work more carefully as we need to support tiling/nine-slice
-			case GUI_SPRITE -> {
-				outer: if (texture.u1() == 0 && texture.u2() == 1 && texture.v1() == 0 && texture.v2() == 1) {
-					// If we're drawing the full texture, just let vanilla do it.
-					context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, texture.image(), x, y, width, height, color);
-				} else {
-					// If we're only drawing a region, draw the full texture in a larger size and clip it
-					// to only show the requested region.
-					float fullWidth = width / Math.abs(texture.u2() - texture.u1());
-					float fullHeight = height / Math.abs(texture.v2() - texture.v1());
-
-					// u1 == u2 or v1 == v2, we don't care about these situations.
-					if (Float.isInfinite(fullWidth) || Float.isInfinite(fullHeight)) break outer;
-
-					// Calculate the offset left/top coordinates.
-					float xo = x - fullWidth * Math.min(texture.u1(), texture.u2());
-					float yo = y - fullHeight * Math.min(texture.v1(), texture.v2());
-
-					Matrix3x2fStack matrices = context.getMatrices();
-					matrices.pushMatrix();
-					context.enableScissor(x, y, x + width, y + height);
-					matrices.translate(xo, yo);
-
-					// Note: scale instead of drawing a (fullWidth, fullHeight) rectangle so that edges of nine-slice
-					// rectangles etc. are drawn scaled too. This matches the behavior of standalone textures.
-					matrices.scale(fullWidth / width, fullHeight / height);
-
-					// Draw the texture using vanilla code.
-					context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, texture.image(), 0, 0, width, height, color);
-
-					context.disableScissor();
-					matrices.popMatrix();
-				}
-			}
-		}
+		texturedRect(context, x, y, width, height, texture.image(), texture.u1(), texture.v1(), texture.u2(), texture.v2(), color, opacity);
 	}
 
 	/**
@@ -162,11 +129,23 @@ public class ScreenDrawing {
 		if (width <= 0) width = 1;
 		if (height <= 0) height = 1;
 
-		int x2 = x + width;
-		int y2 = y + height;
-		float a = (color >> 24 & 255) / 255.0F;
-		color = colorAtOpacity(color, a * opacity);
-		((DrawContextAccessor) context).libgui$callDrawTexturedQuad(RenderPipelines.GUI_TEXTURED, texture, x, x2, y, y2, u1, u2, v1, v2, color);
+		float r = (color >> 16 & 255) / 255.0F;
+		float g = (color >> 8 & 255) / 255.0F;
+		float b = (color & 255) / 255.0F;
+		Tessellator tessellator = Tessellator.getInstance();
+		BufferBuilder buffer = tessellator.getBuffer();
+		Matrix4f model = context.getMatrices().peek().getPositionMatrix();
+		RenderSystem.enableBlend();
+		RenderSystem.setShaderTexture(0, texture);
+		RenderSystem.setShaderColor(r, g, b, opacity);
+		RenderSystem.setShader(GameRenderer::getPositionTexProgram);
+		buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
+		buffer.vertex(model, x,         y + height, 0).texture(u1, v2).next();
+		buffer.vertex(model, x + width, y + height, 0).texture(u2, v2).next();
+		buffer.vertex(model, x + width, y,          0).texture(u2, v1).next();
+		buffer.vertex(model, x,         y,          0).texture(u1, v1).next();
+		BufferRenderer.drawWithGlobalProgram(buffer.end());
+		RenderSystem.disableBlend();
 	}
 
 	/**

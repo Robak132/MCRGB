@@ -3,11 +3,9 @@ package io.github.cottonmc.cotton.gui.widget;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.screen.narration.NarrationPart;
-import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
@@ -24,9 +22,9 @@ import java.util.function.Consumer;
 
 public class WToggleButton extends WWidget {
 	// Default on/off images
-	protected static final Texture DEFAULT_OFF_IMAGE = new Texture(LibGuiCommon.id("textures/widget/toggle_off.png"));
-	protected static final Texture DEFAULT_ON_IMAGE  = new Texture(LibGuiCommon.id("textures/widget/toggle_on.png"));
-	protected static final Texture DEFAULT_FOCUS_IMAGE = new Texture(LibGuiCommon.id("textures/widget/toggle_focus.png"));
+	protected static final Texture DEFAULT_OFF_IMAGE = new Texture(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/toggle_off.png"));
+	protected static final Texture DEFAULT_ON_IMAGE  = new Texture(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/toggle_on.png"));
+	protected static final Texture DEFAULT_FOCUS_IMAGE = new Texture(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/toggle_focus.png"));
 
 	protected Texture onImage;
 	protected Texture offImage;
@@ -129,27 +127,22 @@ public class WToggleButton extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onClick(Click click, boolean doubled) {
-		onClick();
-		return InputResult.PROCESSED;
-	}
-
-	@Override
-	public InputResult onKeyPressed(KeyInput input) {
-		if (isActivationKey(input.key())) {
-			onClick();
-			return InputResult.PROCESSED;
-		}
-
-		return InputResult.IGNORED;
-	}
-
-	@Environment(EnvType.CLIENT)
-	private void onClick() {
+	public InputResult onClick(int x, int y, int button) {
 		MinecraftClient.getInstance().getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 
 		this.isOn = !this.isOn;
 		onToggle(this.isOn);
+		return InputResult.PROCESSED;
+	}
+
+	@Override
+	public InputResult onKeyPressed(int ch, int key, int modifiers) {
+		if (isActivationKey(ch)) {
+			onClick(0, 0, 0);
+			return InputResult.PROCESSED;
+		}
+
+		return InputResult.IGNORED;
 	}
 
 	protected void onToggle(boolean on) {

@@ -5,15 +5,12 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.DrawContext;
 
 import io.github.cottonmc.cotton.gui.GuiDescription;
-import io.github.cottonmc.cotton.gui.impl.Proxy;
 import io.github.cottonmc.cotton.gui.widget.data.Axis;
 import io.github.cottonmc.cotton.gui.widget.data.InputResult;
-import io.github.cottonmc.cotton.gui.widget.data.Insets;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
@@ -54,8 +51,7 @@ public class WListPanel<D, W extends WWidget> extends WClippedPanel {
 	 */
 	protected boolean fixedHeight = false;
 
-	private Insets insets = new Insets(4, 4);
-	private int gap = 4;
+	protected int margin = 4;
 
 	/**
 	 * The scroll bar of this list.
@@ -92,6 +88,18 @@ public class WListPanel<D, W extends WWidget> extends WClippedPanel {
 		}
 
 		super.paint(context, x, y, mouseX, mouseY);
+		/*
+		if (getBackgroundPainter()!=null) {
+			getBackgroundPainter().paintBackground(x, y, this);
+		} else {
+			ScreenDrawing.drawBeveledPanel(x, y, width, height);
+		}
+		
+		
+		
+		for(WWidget child : children) {
+			child.paintBackground(x + child.getX(), y + child.getY(), mouseX - child.getX(), mouseY - child.getY());
+		}*/
 	}
 
 	private W createChild() {
@@ -105,7 +113,6 @@ public class WListPanel<D, W extends WWidget> extends WClippedPanel {
 		} else {
 			requiresHost.add(child);
 		}
-		Proxy.proxy.addPainters(child);
 		return child;
 	}
 
@@ -119,11 +126,6 @@ public class WListPanel<D, W extends WWidget> extends WClippedPanel {
 	public void setHost(GuiDescription host) {
 		super.setHost(host);
 		setRequiredHosts(host);
-	}
-
-	@Override
-	public void addPainters() {
-		// This is handled separately for our children.
 	}
 
 	private void setRequiredHosts(GuiDescription host) {
@@ -163,10 +165,8 @@ public class WListPanel<D, W extends WWidget> extends WClippedPanel {
 		}
 		if (cellHeight<4) cellHeight=4;
 
-		Insets insets = getInsets();
-		int gap = getGap();
-		int layoutHeight = this.getHeight() - insets.height();
-		int cellsHigh = Math.max((layoutHeight + gap) / (cellHeight + gap), 1); // At least one cell is always visible
+		int layoutHeight = this.getHeight()-(margin*2);
+		int cellsHigh = Math.max((layoutHeight+margin) / (cellHeight + margin), 1); // At least one cell is always visible
 
 		//System.out.println("Adding children...");
 
@@ -202,10 +202,10 @@ public class WListPanel<D, W extends WWidget> extends WClippedPanel {
 
 				//At this point, w is nonnull and configured by d
 				if (w.canResize()) {
-					w.setSize(this.width - insets.width() - scrollBar.getWidth(), cellHeight);
+					w.setSize(this.width-(margin*2) - scrollBar.getWidth(), cellHeight);
 				}
-				w.x = insets.left();
-				w.y = insets.top() + ((cellHeight + gap) * i);
+				w.x = margin;
+				w.y = margin + ((cellHeight+margin) * i);
 				this.children.add(w);
 			}
 		}
@@ -226,8 +226,8 @@ public class WListPanel<D, W extends WWidget> extends WClippedPanel {
 	}
 
 	@Override
-	public InputResult onMouseScroll(int x, int y, double horizontalAmount, double verticalAmount) {
-		return scrollBar.onMouseScroll(0, 0, horizontalAmount, verticalAmount);
+	public InputResult onMouseScroll(int x, int y, double amount) {
+		return scrollBar.onMouseScroll(0, 0, amount);
 	}
 
 	/**
@@ -238,51 +238,5 @@ public class WListPanel<D, W extends WWidget> extends WClippedPanel {
 	 */
 	public WScrollBar getScrollBar() {
 		return scrollBar;
-	}
-
-	/**
-	 * {@return the layout insets used for the contents of this list}
-	 * @since 9.1.0
-	 */
-	public Insets getInsets() {
-		// Returns the *effective* insets of this list for backwards compat.
-		return insets;
-	}
-
-	/**
-	 * Sets the layout insets used for the contents of this list.
-	 *
-	 * @param insets the layout insets
-	 * @return this list
-	 * @since 9.1.0
-     */
-	public WListPanel<D, W> setInsets(Insets insets) {
-		this.insets = Objects.requireNonNull(insets, "Insets cannot be null");
-		return this;
-	}
-
-	/**
-	 * {@return the gap between list items}
-	 * @since 9.1.0
-	 */
-	public int getGap() {
-		// Returns the *effective* gap of this list for backwards compat.
-		return gap;
-	}
-
-	/**
-	 * Sets the gap between list items.
-	 *
-	 * @param gap the gap, must be non-negative
-	 * @return this list
-	 * @since 9.1.0
-	 */
-	public WListPanel<D, W> setGap(int gap) {
-		if (gap < 0) {
-			throw new IllegalArgumentException("Gap cannot be negative (was " + gap + ")");
-		}
-
-		this.gap = gap;
-		return this;
 	}
 }

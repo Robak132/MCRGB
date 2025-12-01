@@ -4,7 +4,6 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.screen.narration.NarrationPart;
@@ -13,7 +12,6 @@ import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 
 import io.github.cottonmc.cotton.gui.client.ScreenDrawing;
-import io.github.cottonmc.cotton.gui.impl.client.TextAlignment;
 import io.github.cottonmc.cotton.gui.widget.data.HorizontalAlignment;
 import io.github.cottonmc.cotton.gui.widget.data.InputResult;
 import io.github.cottonmc.cotton.gui.widget.data.VerticalAlignment;
@@ -31,7 +29,6 @@ public class WText extends WWidget {
 	protected Text text;
 	protected int color;
 	protected int darkmodeColor;
-	protected boolean drawShadows;
 	protected HorizontalAlignment horizontalAlignment = HorizontalAlignment.LEFT;
 	protected VerticalAlignment verticalAlignment = VerticalAlignment.TOP;
 	@Environment(EnvType.CLIENT)
@@ -76,13 +73,11 @@ public class WText extends WWidget {
 	@Nullable
 	public Style getTextStyleAt(int x, int y) {
 		TextRenderer font = MinecraftClient.getInstance().textRenderer;
-		int yOffset = TextAlignment.getTextOffsetY(verticalAlignment, height, wrappedLines.size());
-		int lineIndex = (y - yOffset) / font.fontHeight;
+		int lineIndex = y / font.fontHeight;
 
 		if (lineIndex >= 0 && lineIndex < wrappedLines.size()) {
 			OrderedText line = wrappedLines.get(lineIndex);
-			int xOffset = TextAlignment.getTextOffsetX(horizontalAlignment, width, line);
-			return font.getTextHandler().getStyleAt(line, x - xOffset);
+			return font.getTextHandler().getStyleAt(line, x);
 		}
 
 		return null;
@@ -97,17 +92,18 @@ public class WText extends WWidget {
 		}
 
 		TextRenderer font = MinecraftClient.getInstance().textRenderer;
-		int yOffset = TextAlignment.getTextOffsetY(verticalAlignment, height, wrappedLines.size());
+
+		int yOffset = switch (verticalAlignment) {
+			case CENTER -> height / 2 - font.fontHeight * wrappedLines.size() / 2;
+			case BOTTOM -> height - font.fontHeight * wrappedLines.size();
+			case TOP -> 0;
+		};
 
 		for (int i = 0; i < wrappedLines.size(); i++) {
 			OrderedText line = wrappedLines.get(i);
 			int c = shouldRenderInDarkMode() ? darkmodeColor : color;
 
-			if (getDrawShadows()) {
-				ScreenDrawing.drawStringWithShadow(context, line, horizontalAlignment, x, y + yOffset + i * font.fontHeight, width, c);
-			} else {
-				ScreenDrawing.drawString(context, line, horizontalAlignment, x, y + yOffset + i * font.fontHeight, width, c);
-			}
+			ScreenDrawing.drawString(context, line, horizontalAlignment, x, y + yOffset + i * font.fontHeight, width, c);
 		}
 
 		Style hoveredTextStyle = getTextStyleAt(mouseX, mouseY);
@@ -116,10 +112,10 @@ public class WText extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onClick(Click click, boolean doubled) {
-		if (click.button() != 0) return InputResult.IGNORED; // only left clicks
+	public InputResult onClick(int x, int y, int button) {
+		if (button != 0) return InputResult.IGNORED; // only left clicks
 
-		Style hoveredTextStyle = getTextStyleAt((int) click.x(), (int) click.y());
+		Style hoveredTextStyle = getTextStyleAt(x, y);
 		if (hoveredTextStyle != null) {
 			boolean processed = MinecraftClient.getInstance().currentScreen.handleTextClick(hoveredTextStyle);
 			return InputResult.of(processed);
@@ -129,7 +125,7 @@ public class WText extends WWidget {
 	}
 
 	/**
-	 * Gets the text of this text widget.
+	 * Gets the text of this label.
 	 *
 	 * @return the text
 	 */
@@ -138,10 +134,10 @@ public class WText extends WWidget {
 	}
 
 	/**
-	 * Sets the text of this text widget.
+	 * Sets the text of this label.
 	 *
 	 * @param text the new text
-	 * @return this text widget
+	 * @return this label
 	 */
 	public WText setText(Text text) {
 		Objects.requireNonNull(text, "text is null");
@@ -152,7 +148,7 @@ public class WText extends WWidget {
 	}
 
 	/**
-	 * Gets the light mode color of this text widget.
+	 * Gets the light mode color of this label.
 	 *
 	 * @return the color
 	 */
@@ -161,7 +157,7 @@ public class WText extends WWidget {
 	}
 
 	/**
-	 * Sets the light mode color of this text widget.
+	 * Sets the light mode color of this label.
 	 *
 	 * @param color the new color
 	 * @return this text widget
@@ -172,7 +168,7 @@ public class WText extends WWidget {
 	}
 
 	/**
-	 * Gets the dark mode color of this text widget.
+	 * Gets the dark mode color of this label.
 	 *
 	 * @return the color
 	 * @since 2.0.0
@@ -182,7 +178,7 @@ public class WText extends WWidget {
 	}
 
 	/**
-	 * Sets the dark mode color of this text widget.
+	 * Sets the dark mode color of this label.
 	 *
 	 * @param darkmodeColor the new color
 	 * @return this text widget
@@ -193,7 +189,7 @@ public class WText extends WWidget {
 	}
 
 	/**
-	 * Sets the light and dark mode colors of this text widget.
+	 * Sets the light and dark mode colors of this label.
 	 *
 	 * @param color         the new light color
 	 * @param darkmodeColor the new dark color
@@ -202,28 +198,6 @@ public class WText extends WWidget {
 	public WText setColor(int color, int darkmodeColor) {
 		setColor(color);
 		setDarkmodeColor(darkmodeColor);
-		return this;
-	}
-
-	/**
-	 * Checks whether shadows should be drawn for this text widget.
-	 * 
-	 * @return {@code true} shadows should be drawn, {@code false} otherwise
-	 * @since 11.1.0
-	 */
-	public boolean getDrawShadows() {
-		return drawShadows;
-	}
-
-	/**
-	 * Sets whether shadows should be drawn for this text widget.
-	 *
-	 * @param drawShadows {@code true} if shadows should be drawn, {@code false} otherwise
-	 * @return this text widget
-	 * @since 11.1.0
-	 */
-	public WText setDrawShadows(boolean drawShadows) {
-		this.drawShadows = drawShadows;
 		return this;
 	}
 

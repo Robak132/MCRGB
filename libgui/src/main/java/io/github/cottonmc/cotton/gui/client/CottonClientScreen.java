@@ -1,12 +1,9 @@
 package io.github.cottonmc.cotton.gui.client;
 
-import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.input.KeyInput;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 
@@ -21,6 +18,7 @@ import io.github.cottonmc.cotton.gui.widget.WPanel;
 import io.github.cottonmc.cotton.gui.widget.WWidget;
 import io.github.cottonmc.cotton.gui.widget.data.InputResult;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.opengl.GL11;
 
 public class CottonClientScreen extends Screen implements CottonScreenImpl {
 	private static final VisualLogger LOGGER = new VisualLogger(CottonInventoryScreen.class);
@@ -125,11 +123,17 @@ public class CottonClientScreen extends Screen implements CottonScreenImpl {
 		}
 	}
 
-	private void paint(DrawContext context, int mouseX, int mouseY, float delta) {
+	private void paint(DrawContext context, int mouseX, int mouseY) {
+		renderBackground(context);
+
 		if (description!=null) {
 			WPanel root = description.getRootPanel();
 			if (root!=null) {
+				GL11.glEnable(GL11.GL_SCISSOR_TEST);
+				Scissors.refreshScissors();
 				root.paint(context, left, top, mouseX-left, mouseY-top);
+				GL11.glDisable(GL11.GL_SCISSOR_TEST);
+				Scissors.checkStackIsEmpty();
 			}
 
 			if (getTitle() != null && description.isTitleVisible()) {
@@ -141,8 +145,9 @@ public class CottonClientScreen extends Screen implements CottonScreenImpl {
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float partialTicks) {
+		paint(context, mouseX, mouseY);
+		
 		super.render(context, mouseX, mouseY, partialTicks);
-		paint(context, mouseX, mouseY, partialTicks);
 		
 		if (description!=null) {
 			WPanel root = description.getRootPanel();
@@ -167,47 +172,47 @@ public class CottonClientScreen extends Screen implements CottonScreenImpl {
 	}
 
 	@Override
-	public boolean mouseClicked(Click click, boolean doubled) {
-		super.mouseClicked(click, doubled);
-
-		int containerX = (int) click.x() - left;
-		int containerY = (int) click.y() - top;
-		mouseInputHandler.checkFocus(containerX, containerY);
-		if (containerX<0 || containerY<0 || containerX>=width || containerY>=height) return true;
-		mouseInputHandler.onMouseDown(containerX, containerY, click, doubled);
-
-		return true;
-	}
-
-	@Override
-	public boolean mouseReleased(Click click) {
-		super.mouseReleased(click);
-
-		int containerX = (int) click.x() - left;
-		int containerY = (int) click.y() - top;
-		mouseInputHandler.onMouseUp(containerX, containerY, click);
-
-		return true;
-	}
-
-	@Override
-	public boolean mouseDragged(Click click, double offsetX, double offsetY) {
-		super.mouseDragged(click, offsetX, offsetY);
-
-		int containerX = (int) click.x() - left;
-		int containerY = (int) click.y() - top;
-		mouseInputHandler.onMouseDrag(containerX, containerY, click, offsetX, offsetY);
-
-		return true;
-	}
-
-	@Override
-	public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-		super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+	public boolean mouseClicked(double mouseX, double mouseY, int mouseButton) {
+		super.mouseClicked(mouseX, mouseY, mouseButton);
 
 		int containerX = (int)mouseX-left;
 		int containerY = (int)mouseY-top;
-		mouseInputHandler.onMouseScroll(containerX, containerY, horizontalAmount, verticalAmount);
+		mouseInputHandler.checkFocus(containerX, containerY);
+		if (containerX<0 || containerY<0 || containerX>=width || containerY>=height) return true;
+		mouseInputHandler.onMouseDown(containerX, containerY, mouseButton);
+
+		return true;
+	}
+
+	@Override
+	public boolean mouseReleased(double mouseX, double mouseY, int mouseButton) {
+		super.mouseReleased(mouseX, mouseY, mouseButton);
+
+		int containerX = (int)mouseX-left;
+		int containerY = (int)mouseY-top;
+		mouseInputHandler.onMouseUp(containerX, containerY, mouseButton);
+
+		return true;
+	}
+
+	@Override
+	public boolean mouseDragged(double mouseX, double mouseY, int mouseButton, double deltaX, double deltaY) {
+		super.mouseDragged(mouseX, mouseY, mouseButton, deltaX, deltaY);
+
+		int containerX = (int)mouseX-left;
+		int containerY = (int)mouseY-top;
+		mouseInputHandler.onMouseDrag(containerX, containerY, mouseButton, deltaX, deltaY);
+
+		return true;
+	}
+
+	@Override
+	public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+		super.mouseScrolled(mouseX, mouseY, amount);
+
+		int containerX = (int)mouseX-left;
+		int containerY = (int)mouseY-top;
+		mouseInputHandler.onMouseScroll(containerX, containerY, amount);
 
 		return true;
 	}
@@ -222,33 +227,33 @@ public class CottonClientScreen extends Screen implements CottonScreenImpl {
 	}
 
 	@Override
-	public boolean charTyped(CharInput input) {
+	public boolean charTyped(char ch, int keyCode) {
 		WWidget focus = description.getFocus();
-		if (focus != null && focus.onCharTyped(input) == InputResult.PROCESSED) {
+		if (focus != null && focus.onCharTyped(ch) == InputResult.PROCESSED) {
 			return true;
 		}
 
-		return super.charTyped(input);
+		return super.charTyped(ch, keyCode);
 	}
 
 	@Override
-	public boolean keyPressed(KeyInput input) {
+	public boolean keyPressed(int ch, int keyCode, int modifiers) {
 		WWidget focus = description.getFocus();
-		if (focus != null && focus.onKeyPressed(input) == InputResult.PROCESSED) {
+		if (focus != null && focus.onKeyPressed(ch, keyCode, modifiers) == InputResult.PROCESSED) {
 			return true;
 		}
 
-		return super.keyPressed(input);
+		return super.keyPressed(ch, keyCode, modifiers);
 	}
 
 	@Override
-	public boolean keyReleased(KeyInput input) {
+	public boolean keyReleased(int ch, int keyCode, int modifiers) {
 		WWidget focus = description.getFocus();
-		if (focus != null && focus.onKeyReleased(input) == InputResult.PROCESSED) {
+		if (focus != null && focus.onKeyReleased(ch, keyCode, modifiers) == InputResult.PROCESSED) {
 			return true;
 		}
 
-		return super.keyReleased(input);
+		return super.keyReleased(ch, keyCode, modifiers);
 	}
 
 	@Override

@@ -26,14 +26,7 @@ import net.minecraft.world.World;
 
 import io.github.cottonmc.cotton.gui.client.BackgroundPainter;
 import io.github.cottonmc.cotton.gui.client.LibGui;
-import io.github.cottonmc.cotton.gui.impl.DataSlotImpl;
-import io.github.cottonmc.cotton.gui.impl.ScreenNetworkingImpl;
-import io.github.cottonmc.cotton.gui.impl.mixin.ScreenHandlerAccessor;
-import io.github.cottonmc.cotton.gui.networking.DataSlot;
-import io.github.cottonmc.cotton.gui.networking.NetworkDirection;
 import io.github.cottonmc.cotton.gui.networking.NetworkSide;
-import io.github.cottonmc.cotton.gui.networking.ScreenMessageKey;
-import io.github.cottonmc.cotton.gui.networking.ScreenNetworking;
 import io.github.cottonmc.cotton.gui.widget.WGridPanel;
 import io.github.cottonmc.cotton.gui.widget.WLabel;
 import io.github.cottonmc.cotton.gui.widget.WPanel;
@@ -45,8 +38,6 @@ import io.github.cottonmc.cotton.gui.widget.data.Vec2i;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
@@ -68,11 +59,6 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 
 	protected WWidget focus;
 	private Vec2i titlePos = new Vec2i(8, 6);
-	private boolean useDefaultRootBackground = true;
-
-	private final ScreenNetworkingImpl networking;
-	private final ScreenNetworkingImpl.DummyNetworking inactiveNetworking;
-	private final List<DataSlotImpl<?>> dataSlots = new ArrayList<>();
 
 	/**
 	 * Constructs a new synced GUI description without a block inventory or a property delegate.
@@ -85,10 +71,8 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 		super(type, syncId);
 		this.blockInventory = null;
 		this.playerInventory = playerInventory;
-		this.world = playerInventory.player.getEntityWorld();
+		this.world = playerInventory.player.getWorld();
 		this.propertyDelegate = null;//new ArrayPropertyDelegate(1);
-		this.networking = new ScreenNetworkingImpl(this, getNetworkSide());
-		this.inactiveNetworking = new ScreenNetworkingImpl.DummyNetworking();
 	}
 
 	/**
@@ -104,10 +88,8 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 		super(type, syncId);
 		this.blockInventory = blockInventory;
 		this.playerInventory = playerInventory;
-		this.world = playerInventory.player.getEntityWorld();
+		this.world = playerInventory.player.getWorld();
 		this.propertyDelegate = propertyDelegate;
-		this.networking = new ScreenNetworkingImpl(this, getNetworkSide());
-		this.inactiveNetworking = new ScreenNetworkingImpl.DummyNetworking();
 		if (propertyDelegate!=null && propertyDelegate.size()>0) this.addProperties(propertyDelegate);
 		if (blockInventory != null) blockInventory.onOpen(playerInventory.player);
 	}
@@ -117,7 +99,7 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 	}
 	
 	public int getTitleColor() {
-		return (world.isClient() && isDarkMode().orElse(LibGui.isDarkMode())) ? darkTitleColor : titleColor;
+		return (world.isClient && isDarkMode().orElse(LibGui.isDarkMode())) ? darkTitleColor : titleColor;
 	}
 	
 	public SyncedGuiDescription setRootPanel(WPanel panel) {
@@ -141,21 +123,11 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 	
 	@Environment(EnvType.CLIENT)
 	public void addPainters() {
-		if (this.rootPanel!=null && !fullscreen && getUseDefaultRootBackground()) {
+		if (this.rootPanel!=null && !fullscreen) {
 			this.rootPanel.setBackgroundPainter(BackgroundPainter.VANILLA);
 		}
 	}
-
-	@Override
-	public boolean getUseDefaultRootBackground() {
-		return useDefaultRootBackground;
-	}
-
-	@Override
-	public void setUseDefaultRootBackground(boolean useDefaultRootBackground) {
-		this.useDefaultRootBackground = useDefaultRootBackground;
-	}
-
+	
 	public void addSlotPeer(ValidatedSlot slot) {
 		this.addSlot(slot);
 	}
@@ -198,7 +170,7 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 	/** WILL MODIFY toInsert! Returns true if anything was inserted. */
 	private boolean insertIntoExisting(ItemStack toInsert, Slot slot, PlayerEntity player) {
 		ItemStack curSlotStack = slot.getStack();
-		if (!curSlotStack.isEmpty() && ItemStack.areItemsAndComponentsEqual(toInsert, curSlotStack) && slot.canInsert(toInsert)) {
+		if (!curSlotStack.isEmpty() && ItemStack.canCombine(toInsert, curSlotStack) && slot.canInsert(toInsert)) {
 			int combinedAmount = curSlotStack.getCount() + toInsert.getCount();
 			int maxAmount = Math.min(toInsert.getMaxCount(), slot.getMaxItemCount(toInsert));
 			if (combinedAmount <= maxAmount) {
@@ -287,8 +259,8 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 		boolean inserted = false;
 		
 		for(Slot slot : slots) {
-			if (slot.inventory == inventory && slot instanceof ValidatedSlot validated) {
-				int index = validated.getInventoryIndex();
+			if (slot.inventory==inventory && slot instanceof ValidatedSlot) {
+				int index = ((ValidatedSlot)slot).getInventoryIndex();
 				if (PlayerInventory.isValidHotbarIndex(index)) {
 					hotbarSlots.add(slot);
 				} else {
@@ -421,8 +393,8 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 			BlockState state = world.getBlockState(pos);
 			Block b = state.getBlock();
 
-			if (b instanceof InventoryProvider inventoryProvider) {
-				Inventory inventory = inventoryProvider.getInventory(state, world, pos);
+			if (b instanceof InventoryProvider) {
+				Inventory inventory = ((InventoryProvider)b).getInventory(state, world, pos);
 				if (inventory != null) {
 					return inventory;
 				}
@@ -430,13 +402,13 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 
 			BlockEntity be = world.getBlockEntity(pos);
 			if (be!=null) {
-				if (be instanceof InventoryProvider inventoryProvider) {
-					Inventory inventory = inventoryProvider.getInventory(state, world, pos);
+				if (be instanceof InventoryProvider) {
+					Inventory inventory = ((InventoryProvider)be).getInventory(state, world, pos);
 					if (inventory != null) {
 						return inventory;
 					}
-				} else if (be instanceof Inventory inventory) {
-					return inventory;
+				} else if (be instanceof Inventory) {
+					return (Inventory)be;
 				}
 			}
 
@@ -457,8 +429,8 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 	public static PropertyDelegate getBlockPropertyDelegate(ScreenHandlerContext ctx) {
 		return ctx.get((world, pos) -> {
 			BlockEntity be = world.getBlockEntity(pos);
-			if (be instanceof PropertyDelegateHolder holder) {
-				return holder.getPropertyDelegate();
+			if (be!=null && be instanceof PropertyDelegateHolder) {
+				return ((PropertyDelegateHolder)be).getPropertyDelegate();
 			}
 			
 			return new ArrayPropertyDelegate(0);
@@ -481,8 +453,8 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 	public static PropertyDelegate getBlockPropertyDelegate(ScreenHandlerContext ctx, int size) {
 		return ctx.get((world, pos) -> {
 			BlockEntity be = world.getBlockEntity(pos);
-			if (be instanceof PropertyDelegateHolder holder) {
-				return holder.getPropertyDelegate();
+			if (be!=null && be instanceof PropertyDelegateHolder) {
+				return ((PropertyDelegateHolder)be).getPropertyDelegate();
 			}
 
 			return new ArrayPropertyDelegate(size);
@@ -499,12 +471,6 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 		public void onClosed(PlayerEntity player) {
 			super.onClosed(player);
 			if (blockInventory != null) blockInventory.onClose(player);
-		}
-
-		@Override
-		public void sendContentUpdates() {
-			super.sendContentUpdates();
-			sendDataSlotUpdates();
 		}
 	//}
 
@@ -577,14 +543,6 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 	}
 
 	/**
-	 * {@return the world of this GUI description's player}
-	 * @since 10.0.0
-	 */
-	public World getWorld() {
-		return world;
-	}
-
-	/**
 	 * Gets the network side this GUI description runs on.
 	 *
 	 * @return this GUI's network side
@@ -611,90 +569,5 @@ public class SyncedGuiDescription extends ScreenHandler implements GuiDescriptio
 	@Environment(EnvType.CLIENT)
 	private PacketSender getClientPacketSender() {
 		return ClientPlayNetworking.getSender();
-	}
-
-	/**
-	 * Gets a networking handler for the GUI description that is active on the specified side.
-	 *
-	 * <p>If the network side doesn't match the {@linkplain #getNetworkSide() side of this GUI},
-	 * returns a no-op networking handler that is still safe to use.
-	 *
-	 * @param side the network side, cannot be null
-	 * @return the networking handler corresponding to the side
-	 * @since 13.1.0
-	 */
-	public final ScreenNetworking getNetworking(NetworkSide side) {
-		Objects.requireNonNull(side, "side");
-		return side == getNetworkSide() ? networking : inactiveNetworking;
-	}
-
-	/**
-	 * Registers a data slot.
-	 *
-	 * <p>This method must be called on both network sides in order for the data slot
-	 * to sync properly.
-	 *
-	 * <p>The initial value of a data slot will not be synced.
-	 *
-	 * <p>For S2C item stack and int data slots, you should usually use
-	 * {@linkplain Slot vanilla}/{@linkplain io.github.cottonmc.cotton.gui.widget.WItemSlot LibGui}
-	 * slots and {@linkplain PropertyDelegate property delegates}, respectively.
-	 *
-	 * @param key              the key of the sync message, cannot be null
-	 * @param initialValue     the initial value of the data slot
-	 * @param networkDirection the network direction to sync, cannot be null
-	 * @return the data slot
-	 * @param <T> the data slot content type
-	 * @since 13.1.0
-	 */
-	public <T> DataSlot<T> registerDataSlot(ScreenMessageKey<T> key, T initialValue, NetworkDirection networkDirection) {
-		Objects.requireNonNull(key, "key");
-		Objects.requireNonNull(networkDirection, "networkDirection");
-		var slot = new DataSlotImpl<>(this, key, initialValue, networkDirection);
-		getNetworking(networkDirection.to()).receive(key, slot::set);
-		dataSlots.add(slot);
-		return slot;
-	}
-
-	/**
-	 * Registers an S2C data slot.
-	 *
-	 * <p>This method must be called on both network sides in order for the data slot
-	 * to sync properly.
-	 *
-	 * <p>The initial value of a data slot will not be synced.
-	 *
-	 * <p>For item stack and int data slots, you should usually use
-	 * {@linkplain Slot vanilla}/{@linkplain io.github.cottonmc.cotton.gui.widget.WItemSlot LibGui}
-	 * slots and {@linkplain PropertyDelegate property delegates}, respectively.
-	 *
-	 * @param key          the key of the sync message, cannot be null
-	 * @param initialValue the initial value of the data slot
-	 * @return the data slot
-	 * @param <T> the data slot content type
-	 * @since 13.1.0
-	 */
-	public <T> DataSlot<T> registerDataSlot(ScreenMessageKey<T> key, T initialValue) {
-		return registerDataSlot(key, initialValue, NetworkDirection.SERVER_TO_CLIENT);
-	}
-
-	/**
-	 * Checks for and sends data slot content updates.
-	 *
-	 * <p>This method is generally called automatically.
-	 * If you need to manually sync data slots from the server to the client,
-	 * prefer {@link #sendContentUpdates()}.
-	 *
-	 * @since 13.1.0
-	 */
-	public void sendDataSlotUpdates() {
-		if (!((ScreenHandlerAccessor) this).libgui$getDisableSync() && networking.isReady()) {
-			NetworkSide side = getNetworkSide();
-			for (DataSlotImpl<?> dataSlot : dataSlots) {
-				if (side == dataSlot.getNetworkDirection().from()) {
-					dataSlot.checkAndSendUpdate();
-				}
-			}
-		}
 	}
 }

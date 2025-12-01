@@ -3,7 +3,7 @@ package io.github.cottonmc.cotton.gui.widget;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
@@ -11,9 +11,8 @@ import net.minecraft.client.gui.screen.narration.NarrationPart;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 
-import io.github.cottonmc.cotton.gui.client.LibGui;
 import io.github.cottonmc.cotton.gui.client.ScreenDrawing;
-import io.github.cottonmc.cotton.gui.impl.client.TextAlignment;
+import io.github.cottonmc.cotton.gui.impl.client.LibGuiConfig;
 import io.github.cottonmc.cotton.gui.widget.data.HorizontalAlignment;
 import io.github.cottonmc.cotton.gui.widget.data.InputResult;
 import io.github.cottonmc.cotton.gui.widget.data.VerticalAlignment;
@@ -28,17 +27,16 @@ public class WLabel extends WWidget {
 	protected VerticalAlignment verticalAlignment = VerticalAlignment.TOP;
 	protected int color;
 	protected int darkmodeColor;
-	protected boolean drawShadows;
 
 	/**
 	 * The default text color for light mode labels.
 	 */
-	public static final int DEFAULT_TEXT_COLOR = 0xFF_404040;
+	public static final int DEFAULT_TEXT_COLOR = 0x404040;
 
 	/**
-	 * The default text color for {@linkplain LibGui#isDarkMode() dark mode} labels.
+	 * The default text color for {@linkplain LibGuiConfig#darkMode dark mode} labels.
 	 */
-	public static final int DEFAULT_DARKMODE_TEXT_COLOR = 0xFF_BCBCBC;
+	public static final int DEFAULT_DARKMODE_TEXT_COLOR = 0xbcbcbc;
 
 	/**
 	 * Constructs a new label.
@@ -65,13 +63,15 @@ public class WLabel extends WWidget {
 	@Environment(EnvType.CLIENT)
 	@Override
 	public void paint(DrawContext context, int x, int y, int mouseX, int mouseY) {
-		int yOffset = TextAlignment.getTextOffsetY(verticalAlignment, height, 1);
+		MinecraftClient mc = MinecraftClient.getInstance();
+		TextRenderer renderer = mc.textRenderer;
+		int yOffset = switch (verticalAlignment) {
+			case CENTER -> height / 2 - renderer.fontHeight / 2;
+			case BOTTOM -> height - renderer.fontHeight;
+			case TOP -> 0;
+		};
 
-		if (getDrawShadows()) {
-			ScreenDrawing.drawStringWithShadow(context, text.asOrderedText(), horizontalAlignment, x, y + yOffset, this.getWidth(), shouldRenderInDarkMode() ? darkmodeColor : color);
-		} else {
-			ScreenDrawing.drawString(context, text.asOrderedText(), horizontalAlignment, x, y + yOffset, this.getWidth(), shouldRenderInDarkMode() ? darkmodeColor : color);
-		}
+		ScreenDrawing.drawString(context, text.asOrderedText(), horizontalAlignment, x, y + yOffset, this.getWidth(), shouldRenderInDarkMode() ? darkmodeColor : color);
 
 		Style hoveredTextStyle = getTextStyleAt(mouseX, mouseY);
 		ScreenDrawing.drawTextHover(context, hoveredTextStyle, x + mouseX, y + mouseY);
@@ -79,8 +79,8 @@ public class WLabel extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onClick(Click click, boolean doubled) {
-		Style hoveredTextStyle = getTextStyleAt((int) click.x(), (int) click.y());
+	public InputResult onClick(int x, int y, int button) {
+		Style hoveredTextStyle = getTextStyleAt(x, y);
 		if (hoveredTextStyle != null) {
 			Screen screen = MinecraftClient.getInstance().currentScreen;
 			if (screen != null) {
@@ -102,8 +102,7 @@ public class WLabel extends WWidget {
 	@Nullable
 	public Style getTextStyleAt(int x, int y) {
 		if (isWithinBounds(x, y)) {
-			int xOffset = TextAlignment.getTextOffsetX(horizontalAlignment, width, text.asOrderedText());
-			return MinecraftClient.getInstance().textRenderer.getTextHandler().getStyleAt(text, x - xOffset);
+			return MinecraftClient.getInstance().textRenderer.getTextHandler().getStyleAt(text, x);
 		}
 		return null;
 	}
@@ -179,28 +178,6 @@ public class WLabel extends WWidget {
 	public WLabel setColor(int color, int darkmodeColor) {
 		this.color = color;
 		this.darkmodeColor = darkmodeColor;
-		return this;
-	}
-
-	/**
-	 * Checks whether shadows should be drawn for this label.
-	 * 
-	 * @return {@code true} shadows should be drawn, {@code false} otherwise
-	 * @since 11.1.0
-	 */
-	public boolean getDrawShadows() {
-		return drawShadows;
-	}
-
-	/**
-	 * Sets whether shadows should be drawn for this label.
-	 *
-	 * @param drawShadows {@code true} if shadows should be drawn, {@code false} otherwise
-	 * @return this label
-	 * @since 11.1.0
-	 */
-	public WLabel setDrawShadows(boolean drawShadows) {
-		this.drawShadows = drawShadows;
 		return this;
 	}
 

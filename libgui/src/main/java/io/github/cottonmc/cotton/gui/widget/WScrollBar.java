@@ -2,30 +2,23 @@ package io.github.cottonmc.cotton.gui.widget;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.screen.narration.NarrationPart;
-import net.minecraft.client.input.KeyInput;
 import net.minecraft.util.Identifier;
 
+import io.github.cottonmc.cotton.gui.client.BackgroundPainter;
 import io.github.cottonmc.cotton.gui.impl.LibGuiCommon;
 import io.github.cottonmc.cotton.gui.impl.client.NarrationMessages;
-import io.github.cottonmc.cotton.gui.impl.client.WidgetTextures;
+import io.github.cottonmc.cotton.gui.impl.client.NinePatchTextureRendererImpl;
 import io.github.cottonmc.cotton.gui.widget.data.Axis;
 import io.github.cottonmc.cotton.gui.widget.data.InputResult;
+import juuxel.libninepatch.NinePatch;
+
+import static io.github.cottonmc.cotton.gui.client.BackgroundPainter.createNinePatch;
 
 public class WScrollBar extends WWidget {
-	private static final Identifier FOCUS_TEXTURE = LibGuiCommon.id("widget/scroll_bar/focus");
-
-	/**
-	 * The default {@linkplain #getScrollingSpeed() scrolling speed for mouse inputs}.
-	 *
-	 * @since 9.0.0
-	 */
-	public static final int DEFAULT_SCROLLING_SPEED = 4;
-	private int scrollingSpeed = DEFAULT_SCROLLING_SPEED;
+	private static final int SCROLLING_SPEED = 4;
 
 	protected Axis axis = Axis.HORIZONTAL;
 	protected int value;
@@ -56,39 +49,38 @@ public class WScrollBar extends WWidget {
 	public void paint(DrawContext context, int x, int y, int mouseX, int mouseY) {
 		var matrices = context.getMatrices();
 		boolean darkMode = shouldRenderInDarkMode();
-		var textures = WidgetTextures.getScrollBarTextures(darkMode);
 
-		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, textures.background(), x, y, getWidth(), getHeight());
+		Painters.BACKGROUND.paintBackground(context, x, y, this);
 
-		Identifier thumbTexture = textures.thumb();
+		NinePatch<Identifier> painter = (darkMode ? Painters.SCROLL_BAR_DARK : Painters.SCROLL_BAR);
 
 		if (maxValue <= 0) return;
 
 		if (sliding) {
-			thumbTexture = textures.thumbPressed();
+			painter = (darkMode ? Painters.SCROLL_BAR_PRESSED_DARK : Painters.SCROLL_BAR_PRESSED);
 		} else if (isWithinBounds(mouseX, mouseY)) {
-			thumbTexture = textures.thumbHovered();
+			painter = (darkMode ? Painters.SCROLL_BAR_HOVERED_DARK : Painters.SCROLL_BAR_HOVERED);
 		}
 
-		matrices.pushMatrix();
+		matrices.push();
 
 		if (axis == Axis.HORIZONTAL) {
-			matrices.translate(x + 1 + getHandlePosition(), y + 1);
-			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, thumbTexture, 0, 0, getHandleSize(), getHeight() - 2);
+			matrices.translate(x + 1 + getHandlePosition(), y + 1, 0);
+			painter.draw(NinePatchTextureRendererImpl.INSTANCE, context, getHandleSize(), height - 2);
 
 			if (isFocused()) {
-				context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, FOCUS_TEXTURE, 0, 0, getHandleSize(), getHeight() - 2);
+				Painters.FOCUS.draw(NinePatchTextureRendererImpl.INSTANCE, context, getHandleSize(), height - 2);
 			}
 		} else {
-			matrices.translate(x + 1, y + 1 + getHandlePosition());
-			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, thumbTexture, 0, 0, getWidth() - 2, getHandleSize());
+			matrices.translate(x + 1, y + 1 + getHandlePosition(), 0);
+			painter.draw(NinePatchTextureRendererImpl.INSTANCE, context, width - 2, getHandleSize());
 
 			if (isFocused()) {
-				context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, FOCUS_TEXTURE, 0, 0, getWidth() - 2, getHandleSize());
+				Painters.FOCUS.draw(NinePatchTextureRendererImpl.INSTANCE, context, width - 2, getHandleSize());
 			}
 		}
 
-		matrices.popMatrix();
+		matrices.pop();
 	}
 
 	@Override
@@ -157,15 +149,15 @@ public class WScrollBar extends WWidget {
 	}
 
 	@Override
-	public InputResult onMouseDown(Click click, boolean doubled) {
+	public InputResult onMouseDown(int x, int y, int button) {
 		//TODO: Clicking before or after the handle should jump instead of scrolling
 		requestFocus();
 
 		if (axis==Axis.HORIZONTAL) {
-			anchor = (int) click.x();
+			anchor = x;
 			anchorValue = value;
 		} else {
-			anchor = (int) click.y();
+			anchor = y;
 			anchorValue = value;
 		}
 		sliding = true;
@@ -174,14 +166,14 @@ public class WScrollBar extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onMouseDrag(Click click, double offsetX, double offsetY) {
-		adjustSlider((int) click.x(), (int) click.y());
+	public InputResult onMouseDrag(int x, int y, int button, double deltaX, double deltaY) {
+		adjustSlider(x, y);
 		return InputResult.PROCESSED;
 	}
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onMouseUp(Click click) {
+	public InputResult onMouseUp(int x, int y, int button) {
 		//TODO: Clicking before or after the handle should jump instead of scrolling
 		anchor = -1;
 		anchorValue = -1;
@@ -190,17 +182,17 @@ public class WScrollBar extends WWidget {
 	}
 
 	@Override
-	public InputResult onKeyPressed(KeyInput input) {
+	public InputResult onKeyPressed(int ch, int key, int modifiers) {
 		WAbstractSlider.Direction direction = axis == Axis.HORIZONTAL
 				? WAbstractSlider.Direction.RIGHT
 				: WAbstractSlider.Direction.DOWN;
 
-		if (WAbstractSlider.isIncreasingKey(input.key(), direction)) {
+		if (WAbstractSlider.isIncreasingKey(ch, direction)) {
 			if (value < getMaxScrollValue()) {
 				value++;
 			}
 			return InputResult.PROCESSED;
-		} else if (WAbstractSlider.isDecreasingKey(input.key(), direction)) {
+		} else if (WAbstractSlider.isDecreasingKey(ch, direction)) {
 			if (value > 0) {
 				value--;
 			}
@@ -212,8 +204,8 @@ public class WScrollBar extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onMouseScroll(int x, int y, double horizontalAmount, double verticalAmount) {
-		setValue(getValue() + (int) (horizontalAmount - verticalAmount) * scrollingSpeed);
+	public InputResult onMouseScroll(int x, int y, double amount) {
+		setValue(getValue() + (int) -amount * SCROLLING_SPEED);
 		return InputResult.PROCESSED;
 	}
 
@@ -235,31 +227,6 @@ public class WScrollBar extends WWidget {
 		this.maxValue = max;
 		checkValue();
 		return this;
-	}
-
-	/**
-	 * Sets the mouse scroll speed.
-	 *
-	 * <p>By default, the scrolling speed is {@value #DEFAULT_SCROLLING_SPEED}.
-	 *
-	 * @param scrollingSpeed the scroll speed, must be positive
-	 * @return this scroll bar
-	 */
-	public WScrollBar setScrollingSpeed(int scrollingSpeed) {
-		if (scrollingSpeed < 0) throw new IllegalArgumentException("Negative value for scrolling speed");
-		if (scrollingSpeed == 0) throw new IllegalArgumentException("Zero value for scrolling speed");
-
-		this.scrollingSpeed = scrollingSpeed;
-		return this;
-	}
-
-	/**
-	 * {@return the default mouse scroll speed}
-	 *
-	 * <p>By default, the scrolling speed is {@value #DEFAULT_SCROLLING_SPEED}.
-	 */
-	public int getScrollingSpeed() {
-		return scrollingSpeed;
 	}
 
 	public int getWindow() {
@@ -287,5 +254,20 @@ public class WScrollBar extends WWidget {
 	public void addNarrations(NarrationMessageBuilder builder) {
 		builder.put(NarrationPart.TITLE, NarrationMessages.SCROLL_BAR_TITLE);
 		builder.put(NarrationPart.USAGE, NarrationMessages.SLIDER_USAGE);
+	}
+
+	@Environment(EnvType.CLIENT)
+	static final class Painters {
+		static final NinePatch<Identifier> SCROLL_BAR = NinePatch.builder(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/scroll_bar/scroll_bar_light.png")).cornerSize(4).cornerUv(0.25f).build();
+		static final NinePatch<Identifier> SCROLL_BAR_DARK = NinePatch.builder(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/scroll_bar/scroll_bar_dark.png")).cornerSize(4).cornerUv(0.25f).build();
+		static final NinePatch<Identifier> SCROLL_BAR_PRESSED = NinePatch.builder(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/scroll_bar/scroll_bar_pressed_light.png")).cornerSize(4).cornerUv(0.25f).build();
+		static final NinePatch<Identifier> SCROLL_BAR_PRESSED_DARK = NinePatch.builder(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/scroll_bar/scroll_bar_pressed_dark.png")).cornerSize(4).cornerUv(0.25f).build();
+		static final NinePatch<Identifier> SCROLL_BAR_HOVERED = NinePatch.builder(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/scroll_bar/scroll_bar_hovered_light.png")).cornerSize(4).cornerUv(0.25f).build();
+		static final NinePatch<Identifier> SCROLL_BAR_HOVERED_DARK = NinePatch.builder(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/scroll_bar/scroll_bar_hovered_dark.png")).cornerSize(4).cornerUv(0.25f).build();
+		static final BackgroundPainter BACKGROUND = BackgroundPainter.createLightDarkVariants(
+				createNinePatch(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/scroll_bar/background_light.png")),
+				createNinePatch(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/scroll_bar/background_dark.png"))
+		);
+		static final NinePatch<Identifier> FOCUS = NinePatch.builder(new Identifier(LibGuiCommon.MOD_ID, "textures/widget/scroll_bar/focus.png")).cornerSize(4).cornerUv(0.25f).build();
 	}
 }

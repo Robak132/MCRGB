@@ -3,12 +3,9 @@ package io.github.cottonmc.cotton.gui.widget;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.tooltip.HoveredTooltipPositioner;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.input.KeyInput;
 
 import io.github.cottonmc.cotton.gui.GuiDescription;
 import io.github.cottonmc.cotton.gui.client.LibGui;
@@ -45,7 +42,7 @@ public class WWidget {
 
 	/**
 	 * The containing {@link GuiDescription} of this widget.
-	 * Can be null if this widget is a {@linkplain io.github.cottonmc.cotton.gui.client.WidgetHudElement HUD} widget.
+	 * Can be null if this widget is a {@linkplain io.github.cottonmc.cotton.gui.client.CottonHud HUD} widget.
 	 */
 	@Nullable
 	protected GuiDescription host;
@@ -161,63 +158,67 @@ public class WWidget {
 	/**
 	 * Notifies this widget that the mouse has been pressed while inside its bounds
 	 *
-	 * @param click   the click data whose coordinates are in widget space ((0, 0) is the top-left point of this widget)
-	 * @param doubled {@code true} if this is a mouse down event of a double click, {@code false} otherwise
+	 * @param x The X coordinate of the event, in widget-space (0 is the left edge of this widget)
+	 * @param y The Y coordinate of the event, in widget-space (0 is the top edge of this widget)
+	 * @param button The mouse button that was used. Button numbering is consistent with LWJGL Mouse (0=left, 1=right, 2=mousewheel click)
 	 * @return {@link InputResult#PROCESSED} if the event is handled, {@link InputResult#IGNORED} otherwise.
 	 */
 	@Environment(EnvType.CLIENT)
-	public InputResult onMouseDown(Click click, boolean doubled) {
+	public InputResult onMouseDown(int x, int y, int button) {
 		return InputResult.IGNORED;
 	}
 
 	/**
 	 * Notifies this widget that the mouse has been moved while pressed and inside its bounds.
 	 *
-	 * @param click   the click data whose coordinates are in widget space ((0, 0) is the top-left point of this widget)
-	 * @param offsetX the amount of dragging on the X axis
-	 * @param offsetY the amount of dragging on the Y axis
+	 * @param x The X coordinate of the event, in widget-space (0 is the left edge of this widget)
+	 * @param y The Y coordinate of the event, in widget-space (0 is the top edge of this widget)
+	 * @param button The mouse button that was used. Button numbering is consistent with LWJGL Mouse (0=left, 1=right, 2=mousewheel click)
+	 * @param deltaX The amount of dragging on the X axis
+	 * @param deltaY The amount of dragging on the Y axis
 	 * @return {@link InputResult#PROCESSED} if the event is handled, {@link InputResult#IGNORED} otherwise.
 	 * @since 1.5.0
 	 */
 	@Environment(EnvType.CLIENT)
-	public InputResult onMouseDrag(Click click, double offsetX, double offsetY) {
+	public InputResult onMouseDrag(int x, int y, int button, double deltaX, double deltaY) {
 		return InputResult.IGNORED;
 	}
 
 	/**
 	 * Notifies this widget that the mouse has been released while inside its bounds
-	 *
-	 * @param click the click data whose coordinates are in widget space ((0, 0) is the top-left point of this widget)
+	 * @param x The X coordinate of the event, in widget-space (0 is the left edge of this widget)
+	 * @param y The Y coordinate of the event, in widget-space (0 is the top edge of this widget)
+	 * @param button The mouse button that was used. Button numbering is consistent with LWJGL Mouse (0=left, 1=right, 2=mousewheel click)
 	 * @return {@link InputResult#PROCESSED} if the event is handled, {@link InputResult#IGNORED} otherwise.
 	 */
 	@Environment(EnvType.CLIENT)
-	public InputResult onMouseUp(Click click) {
+	public InputResult onMouseUp(int x, int y, int button) {
 		return InputResult.IGNORED;
 	}
 
 	/**
 	 * Notifies this widget that the mouse has been pressed and released, both while inside its bounds.
 	 *
-	 * @param click   the click data whose coordinates are in widget space ((0, 0) is the top-left point of this widget)
-	 * @param doubled {@code true} if this is a double click, {@code false} otherwise
+	 * @param x The X coordinate of the event, in widget-space (0 is the left edge of this widget)
+	 * @param y The Y coordinate of the event, in widget-space (0 is the top edge of this widget)
+	 * @param button The mouse button that was used. Button numbering is consistent with LWJGL Mouse (0=left, 1=right, 2=mousewheel click)
 	 * @return {@link InputResult#PROCESSED} if the event is handled, {@link InputResult#IGNORED} otherwise.
 	 */
 	@Environment(EnvType.CLIENT)
-	public InputResult onClick(Click click, boolean doubled) {
+	public InputResult onClick(int x, int y, int button) {
 		return InputResult.IGNORED;
 	}
 
 	/**
 	 * Notifies this widget that the mouse has been scrolled inside its bounds.
 	 *
-	 * @param x                The X coordinate of the event, in widget-space (0 is the left edge of this widget)
-	 * @param y                The Y coordinate of the event, in widget-space (0 is the top edge of this widget)
-	 * @param horizontalAmount The scrolled horizontal amount. Positive values are right and negative values are left.
-	 * @param verticalAmount   The scrolled vertical amount. Positive values are up and negative values are down.
+	 * @param x The X coordinate of the event, in widget-space (0 is the left edge of this widget)
+	 * @param y The Y coordinate of the event, in widget-space (0 is the top edge of this widget)
+	 * @param amount The scrolled amount. Positive values are up and negative values are down.
 	 * @return {@link InputResult#PROCESSED} if the event is handled, {@link InputResult#IGNORED} otherwise.
 	 */
 	@Environment(EnvType.CLIENT)
-	public InputResult onMouseScroll(int x, int y, double horizontalAmount, double verticalAmount) {
+	public InputResult onMouseScroll(int x, int y, double amount) {
 		return InputResult.IGNORED;
 	}
 
@@ -237,31 +238,31 @@ public class WWidget {
 	/**
 	 * Notifies this widget that a character has been typed. This method is subject to key repeat,
 	 * and may be called for characters that do not directly have a corresponding keyboard key.
-	 * @param input the character typed
+	 * @param ch the character typed
 	 * @return {@link InputResult#PROCESSED} if the event is handled, {@link InputResult#IGNORED} otherwise.
 	 */
 	@Environment(EnvType.CLIENT)
-	public InputResult onCharTyped(CharInput input) {
+	public InputResult onCharTyped(char ch) {
 		return InputResult.IGNORED;
 	}
 
 	/**
 	 * Notifies this widget that a key has been pressed.
-	 * @param input the key input
+	 * @param key the GLFW scancode of the key
 	 * @return {@link InputResult#PROCESSED} if the event is handled, {@link InputResult#IGNORED} otherwise.
 	 */
 	@Environment(EnvType.CLIENT)
-	public InputResult onKeyPressed(KeyInput input) {
+	public InputResult onKeyPressed(int ch, int key, int modifiers) {
 		return InputResult.IGNORED;
 	}
 
 	/**
 	 * Notifies this widget that a key has been released
-	 * @param input the key input
+	 * @param key the GLFW scancode of the key
 	 * @return {@link InputResult#PROCESSED} if the event is handled, {@link InputResult#IGNORED} otherwise.
 	 */
 	@Environment(EnvType.CLIENT)
-	public InputResult onKeyReleased(KeyInput input) {
+	public InputResult onKeyReleased(int ch, int key, int modifiers) {
 		return InputResult.IGNORED;
 	}
 
@@ -360,7 +361,7 @@ public class WWidget {
 		if (builder.size() == 0) return;
 
 		var client = MinecraftClient.getInstance();
-		context.drawTooltip(client.textRenderer, builder.lines, HoveredTooltipPositioner.INSTANCE, tX + x, tY + y, false);
+		context.drawTooltip(client.textRenderer, builder.lines, HoveredTooltipPositioner.INSTANCE, tX + x, tY + y);
 	}
 
 	/**
@@ -491,7 +492,7 @@ public class WWidget {
 
 	/**
 	 * Returns whether the user is hovering over this widget.
-	 * The result is an <em>observable property</em> that can be modified and listened to.
+	 * The result is an <i>observable property</i> that can be modified and listened to.
 	 *
 	 * <p>This property takes into account {@link #isWithinBounds(int, int)} to check
 	 * if the cursor is within the bounds, as well as {@link #canHover()} to enable hovering at all.

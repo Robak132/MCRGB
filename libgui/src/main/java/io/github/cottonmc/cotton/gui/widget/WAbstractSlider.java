@@ -2,10 +2,8 @@ package io.github.cottonmc.cotton.gui.widget;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.screen.narration.NarrationPart;
-import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 
@@ -131,9 +129,9 @@ public abstract class WAbstractSlider extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onMouseDown(Click click, boolean doubled) {
+	public InputResult onMouseDown(int x, int y, int button) {
 		// Check if cursor is inside or <=2px away from track
-		if (isMouseInsideBounds((int) click.x(), (int) click.y())) {
+		if (isMouseInsideBounds(x, y)) {
 			requestFocus();
 			return InputResult.PROCESSED;
 		}
@@ -142,10 +140,10 @@ public abstract class WAbstractSlider extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onMouseDrag(Click click, double offsetX, double offsetY) {
+	public InputResult onMouseDrag(int x, int y, int button, double deltaX, double deltaY) {
 		if (isFocused()) {
 			dragging = true;
-			moveSlider((int) click.x(), (int) click.y());
+			moveSlider(x, y);
 			return InputResult.PROCESSED;
 		}
 
@@ -154,8 +152,8 @@ public abstract class WAbstractSlider extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onClick(Click click, boolean doubled) {
-		moveSlider((int) click.x(), (int) click.y());
+	public InputResult onClick(int x, int y, int button) {
+		moveSlider(x, y);
 		if (draggingFinishedListener != null) draggingFinishedListener.accept(value);
 		return InputResult.PROCESSED;
 	}
@@ -177,7 +175,7 @@ public abstract class WAbstractSlider extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onMouseUp(Click click) {
+	public InputResult onMouseUp(int x, int y, int button) {
 		dragging = false;
 		if (draggingFinishedListener != null) draggingFinishedListener.accept(value);
 		return InputResult.PROCESSED;
@@ -185,13 +183,13 @@ public abstract class WAbstractSlider extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onMouseScroll(int x, int y, double horizontalAmount, double verticalAmount) {
+	public InputResult onMouseScroll(int x, int y, double amount) {
 		if (direction == Direction.LEFT || direction == Direction.DOWN) {
-			verticalAmount = -verticalAmount;
+			amount = -amount;
 		}
 
 		int previous = value;
-		value = MathHelper.clamp(value + (int) Math.signum(verticalAmount) * MathHelper.ceil(valueToCoordRatio * Math.abs(verticalAmount) * 2), min, max);
+		value = MathHelper.clamp(value + (int) Math.signum(amount) * MathHelper.ceil(valueToCoordRatio * Math.abs(amount) * 2), min, max);
 
 		if (previous != value) {
 			onValueChanged(value);
@@ -321,21 +319,21 @@ public abstract class WAbstractSlider extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onKeyPressed(KeyInput input) {
+	public InputResult onKeyPressed(int ch, int key, int modifiers) {
 		boolean valueChanged = false;
-		if (input.modifiers() == 0) {
-			if (isDecreasingKey(input.key(), direction) && value > min) {
+		if (modifiers == 0) {
+			if (isDecreasingKey(ch, direction) && value > min) {
 				value--;
 				valueChanged = true;
-			} else if (isIncreasingKey(input.key(), direction) && value < max) {
+			} else if (isIncreasingKey(ch, direction) && value < max) {
 				value++;
 				valueChanged = true;
 			}
-		} else if (input.hasCtrl()) {
-			if (isDecreasingKey(input.key(), direction) && value != min) {
+		} else if (modifiers == GLFW.GLFW_MOD_CONTROL) {
+			if (isDecreasingKey(ch, direction) && value != min) {
 				value = min;
 				valueChanged = true;
-			} else if (isIncreasingKey(input.key(), direction) && value != max) {
+			} else if (isIncreasingKey(ch, direction) && value != max) {
 				value = max;
 				valueChanged = true;
 			}
@@ -351,8 +349,8 @@ public abstract class WAbstractSlider extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onKeyReleased(KeyInput input) {
-		if (pendingDraggingFinishedFromKeyboard && (isDecreasingKey(input.key(), direction) || isIncreasingKey(input.key(), direction))) {
+	public InputResult onKeyReleased(int ch, int key, int modifiers) {
+		if (pendingDraggingFinishedFromKeyboard && (isDecreasingKey(ch, direction) || isIncreasingKey(ch, direction))) {
 			if (draggingFinishedListener != null) draggingFinishedListener.accept(value);
 			pendingDraggingFinishedFromKeyboard = false;
 			return InputResult.PROCESSED;

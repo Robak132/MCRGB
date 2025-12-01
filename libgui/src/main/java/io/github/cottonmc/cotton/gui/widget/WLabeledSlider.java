@@ -2,17 +2,15 @@ package io.github.cottonmc.cotton.gui.widget;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.screen.narration.NarrationPart;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.RotationAxis;
 
 import io.github.cottonmc.cotton.gui.client.ScreenDrawing;
 import io.github.cottonmc.cotton.gui.impl.client.NarrationMessages;
-import io.github.cottonmc.cotton.gui.impl.client.WidgetTextures;
-import io.github.cottonmc.cotton.gui.impl.mixin.client.SliderWidgetAccessor;
 import io.github.cottonmc.cotton.gui.widget.data.Axis;
 import io.github.cottonmc.cotton.gui.widget.data.HorizontalAlignment;
 import org.jetbrains.annotations.Nullable;
@@ -75,6 +73,15 @@ public class WLabeledSlider extends WAbstractSlider {
 	public WLabeledSlider(int min, int max, @Nullable Text label) {
 		this(min, max);
 		this.label = label;
+	}
+
+	@Override
+	public void setSize(int x, int y) {
+		if (axis == Axis.HORIZONTAL) {
+			super.setSize(x, 20);
+		} else {
+			super.setSize(20, y);
+		}
 	}
 
 	/**
@@ -162,29 +169,51 @@ public class WLabeledSlider extends WAbstractSlider {
 		int rotMouseY = axis == Axis.HORIZONTAL ? mouseY : mouseX;
 
 		var matrices = context.getMatrices();
-		matrices.pushMatrix();
-		matrices.translate(x, y);
+		matrices.push();
+		matrices.translate(x, y, 0);
 		if (axis == Axis.VERTICAL) {
-			matrices.translate(0, height);
-			matrices.rotate(-MathHelper.HALF_PI);
+			matrices.translate(0, height, 0);
+			matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(270));
 		}
-		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, SliderWidgetAccessor.libgui$getTexture(), 0, 0, aWidth, aHeight);
+		drawButton(context, 0, 0, 0, aWidth);
 
+		// 1: regular, 2: hovered, 0: disabled/dragging
 		int thumbX = Math.round(coordToValueRatio * (value - min));
 		int thumbY = 0;
 		int thumbWidth = getThumbWidth();
 		int thumbHeight = aHeight;
 		boolean hovering = rotMouseX >= thumbX && rotMouseX <= thumbX + thumbWidth && rotMouseY >= thumbY && rotMouseY <= thumbY + thumbHeight;
+		int thumbState = dragging || hovering ? 2 : 1;
 
-		var thumbTextures = WidgetTextures.getLabeledSliderHandleTextures(shouldRenderInDarkMode());
-		var thumbTexture = thumbTextures.get(true, dragging || hovering);
-		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, thumbTexture, thumbX, thumbY, thumbWidth, thumbHeight);
+		drawButton(context, thumbX, thumbY, thumbState, thumbWidth);
+
+		if (thumbState == 1 && isFocused()) {
+			float px = 1 / 32f;
+			ScreenDrawing.texturedRect(context, thumbX, thumbY, thumbWidth, thumbHeight, WSlider.LIGHT_TEXTURE, 24*px, 0*px, 32*px, 20*px, 0xFFFFFFFF);
+		}
 
 		if (label != null) {
-			int color = isMouseInsideBounds(mouseX, mouseY) ? 0xFF_FFFFA0 : 0xFF_E0E0E0;
+			int color = isMouseInsideBounds(mouseX, mouseY) ? 0xFFFFA0 : 0xE0E0E0;
 			ScreenDrawing.drawStringWithShadow(context, label.asOrderedText(), labelAlignment, 2, aHeight / 2 - 4, aWidth - 4, color);
 		}
-		matrices.popMatrix();
+		matrices.pop();
+	}
+
+	// state = 1: regular, 2: hovered, 0: disabled/dragging
+	@Environment(EnvType.CLIENT)
+	private void drawButton(DrawContext context, int x, int y, int state, int width) {
+		float px = 1 / 256f;
+		float buttonLeft = 0 * px;
+		float buttonTop = (46 + (state * 20)) * px;
+		int halfWidth = width / 2;
+		if (halfWidth > 198) halfWidth = 198;
+		float buttonWidth = halfWidth * px;
+		float buttonHeight = 20 * px;
+		float buttonEndLeft = (200 - halfWidth) * px;
+
+		Identifier texture = WButton.getTexture(this);
+		ScreenDrawing.texturedRect(context, x, y, halfWidth, 20, texture, buttonLeft, buttonTop, buttonLeft + buttonWidth, buttonTop + buttonHeight, 0xFFFFFFFF);
+		ScreenDrawing.texturedRect(context, x + halfWidth, y, halfWidth, 20, texture, buttonEndLeft, buttonTop, 200 * px, buttonTop + buttonHeight, 0xFFFFFFFF);
 	}
 
 	@Environment(EnvType.CLIENT)

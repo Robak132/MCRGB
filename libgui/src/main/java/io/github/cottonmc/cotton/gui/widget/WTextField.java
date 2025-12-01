@@ -1,24 +1,30 @@
 package io.github.cottonmc.cotton.gui.widget;
 
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.screen.narration.NarrationPart;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.input.KeyInput;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 
+import io.github.cottonmc.cotton.gui.client.BackgroundPainter;
 import io.github.cottonmc.cotton.gui.client.ScreenDrawing;
 import io.github.cottonmc.cotton.gui.impl.client.NarrationMessages;
-import io.github.cottonmc.cotton.gui.impl.mixin.client.TextFieldWidgetAccessor;
 import io.github.cottonmc.cotton.gui.widget.data.InputResult;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix4f;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.function.Consumer;
@@ -31,18 +37,20 @@ public class WTextField extends WWidget {
 	public static final int CURSOR_HEIGHT = 12;
 
 	@Environment(EnvType.CLIENT)
-	@Nullable
-	private TextRenderer textRenderer;
+	private TextRenderer font;
 
 	private String text = "";
 	private int maxLength = 16;
 	private boolean editable = true;
 	private int tickCount = 0;
 
-	private int disabledColor = 0xFF_707070;
-	private int enabledColor = 0xFF_E0E0E0;
-	private int suggestionColor = 0xFF_808080;
+	private int disabledColor = 0x707070;
+	private int enabledColor = 0xE0E0E0;
+	private int suggestionColor = 0x808080;
 
+	private static final int BACKGROUND_COLOR = 0xFF000000;
+	private static final int BORDER_COLOR_SELECTED = 0xFFFFFFA0;
+	private static final int BORDER_COLOR_UNSELECTED = 0xFFA0A0A0;
 	private static final int CURSOR_COLOR = 0xFFD0D0D0;
 
 	@Nullable
@@ -63,6 +71,10 @@ public class WTextField extends WWidget {
 	private Consumer<String> onChanged;
 
 	private Predicate<String> textPredicate;
+
+	@Environment(EnvType.CLIENT)
+	@Nullable
+	private BackgroundPainter backgroundPainter;
 
 	public WTextField() {
 	}
@@ -136,14 +148,7 @@ public class WTextField extends WWidget {
 	}
 
 	@Environment(EnvType.CLIENT)
-	private TextRenderer getTextRenderer() {
-		return textRenderer != null ? textRenderer : (textRenderer = MinecraftClient.getInstance().textRenderer);
-	}
-
-	@Environment(EnvType.CLIENT)
 	public void scrollCursorIntoView() {
-		TextRenderer font = getTextRenderer();
-
 		if (scrollOffset > cursor) {
 			scrollOffset = cursor;
 		}
@@ -156,7 +161,7 @@ public class WTextField extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	private void checkScrollOffset() {
-		int rightMostScrollOffset = text.length() - getTextRenderer().trimToWidth(text, width - TEXT_PADDING_X * 2, true).length();
+		int rightMostScrollOffset = text.length() - font.trimToWidth(text, width - TEXT_PADDING_X * 2, true).length();
 		scrollOffset = Math.min(rightMostScrollOffset, scrollOffset);
 	}
 
@@ -181,14 +186,15 @@ public class WTextField extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	protected void renderBox(DrawContext context, int x, int y) {
-		var texture = TextFieldWidgetAccessor.libgui$getTextures().get(isEditable(), isFocused());
-		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, texture, x - 1, y - 1, width + 2, height + 2);
+		int borderColor = this.isFocused() ? BORDER_COLOR_SELECTED : BORDER_COLOR_UNSELECTED;
+		ScreenDrawing.coloredRect(context, x - 1, y - 1, width + 2, height + 2, borderColor);
+		ScreenDrawing.coloredRect(context, x, y, width, height, BACKGROUND_COLOR);
 	}
 
 	@Environment(EnvType.CLIENT)
 	protected void renderText(DrawContext context, int x, int y, String visibleText) {
 		int textColor = this.editable ? this.enabledColor : this.disabledColor;
-		context.drawText(getTextRenderer(), visibleText, x + TEXT_PADDING_X, y + TEXT_PADDING_Y, textColor, true);
+		context.drawText(font, visibleText, x + TEXT_PADDING_X, y + TEXT_PADDING_Y, textColor, true);
 	}
 
 	@Environment(EnvType.CLIENT)
@@ -196,14 +202,14 @@ public class WTextField extends WWidget {
 		if (this.tickCount / 6 % 2 == 0) return;
 		if (this.cursor < this.scrollOffset) return;
 		if (this.cursor > this.scrollOffset + visibleText.length()) return;
-		int cursorOffset = getTextRenderer().getWidth(visibleText.substring(0, this.cursor - this.scrollOffset));
+		int cursorOffset = this.font.getWidth(visibleText.substring(0, this.cursor - this.scrollOffset));
 		ScreenDrawing.coloredRect(context, x + TEXT_PADDING_X + cursorOffset, y + CURSOR_PADDING_Y, 1, CURSOR_HEIGHT, CURSOR_COLOR);
 	}
 
 	@Environment(EnvType.CLIENT)
 	protected void renderSuggestion(DrawContext context, int x, int y) {
 		if (this.suggestion == null) return;
-		context.drawText(getTextRenderer(), suggestion, x + TEXT_PADDING_X, y + TEXT_PADDING_Y, this.suggestionColor, true);
+		context.drawText(font, suggestion, x + TEXT_PADDING_X, y + TEXT_PADDING_Y, this.suggestionColor, true);
 	}
 
 	@Environment(EnvType.CLIENT)
@@ -220,17 +226,18 @@ public class WTextField extends WWidget {
 		int normalizedLeft = Math.max(scrollOffset, left) - scrollOffset;
 		int normalizedRight = Math.min(scrollOffset + textLength, right) - scrollOffset;
 
-		TextRenderer font = getTextRenderer();
 		int leftCaret = font.getWidth(visibleText.substring(0, normalizedLeft));
 		int selectionWidth = font.getWidth(visibleText.substring(normalizedLeft, normalizedRight));
 
-		drawHighlight(context, x + TEXT_PADDING_X + leftCaret, y + CURSOR_PADDING_Y, selectionWidth, CURSOR_HEIGHT);
+		invertedRect(context, x + TEXT_PADDING_X + leftCaret, y + CURSOR_PADDING_Y, selectionWidth, CURSOR_HEIGHT);
 	}
 
 	@Environment(EnvType.CLIENT)
 	protected void renderTextField(DrawContext context, int x, int y) {
+		if (this.font == null) this.font = MinecraftClient.getInstance().textRenderer;
+
 		checkScrollOffset();
-		String visibleText = getTextRenderer().trimToWidth(this.text.substring(this.scrollOffset), this.width - 2 * TEXT_PADDING_X);
+		String visibleText = font.trimToWidth(this.text.substring(this.scrollOffset), this.width - 2 * TEXT_PADDING_X);
 		renderBox(context, x, y);
 		renderText(context, x, y, visibleText);
 		if (this.text.isEmpty() && !this.isFocused()) {
@@ -243,8 +250,22 @@ public class WTextField extends WWidget {
 	}
 
 	@Environment(EnvType.CLIENT)
-	private void drawHighlight(DrawContext context, int x, int y, int width, int height) {
-		context.fill(RenderPipelines.GUI_TEXT_HIGHLIGHT, x, y, x + width, y + height, 0xFF_0000FF);
+	private void invertedRect(DrawContext context, int x, int y, int width, int height) {
+		Tessellator tessellator = Tessellator.getInstance();
+		BufferBuilder buffer = tessellator.getBuffer();
+		Matrix4f model = context.getMatrices().peek().getPositionMatrix();
+		RenderSystem.setShaderColor(0.0F, 0.0F, 1.0F, 1.0F);
+		RenderSystem.setShader(GameRenderer::getPositionProgram);
+		RenderSystem.enableColorLogicOp();
+		RenderSystem.logicOp(GlStateManager.LogicOp.OR_REVERSE);
+		buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION);
+		buffer.vertex(model, x, y + height, 0).next();
+		buffer.vertex(model, x + width, y + height, 0).next();
+		buffer.vertex(model, x + width, y, 0).next();
+		buffer.vertex(model, x, y, 0).next();
+		BufferRenderer.drawWithGlobalProgram(buffer.end());
+		RenderSystem.disableColorLogicOp();
+		RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
 	}
 
 	public WTextField setTextPredicate(Predicate<String> predicate_1) {
@@ -295,6 +316,12 @@ public class WTextField extends WWidget {
 		return this;
 	}
 
+	@Environment(EnvType.CLIENT)
+	public WTextField setBackgroundPainter(BackgroundPainter painter) {
+		this.backgroundPainter = painter;
+		return this;
+	}
+
 	public boolean canFocus() {
 		return true;
 	}
@@ -311,9 +338,9 @@ public class WTextField extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onClick(Click click, boolean doubled) {
+	public InputResult onClick(int x, int y, int button) {
 		requestFocus();
-		cursor = getCaretPosition((int) click.x() - TEXT_PADDING_X);
+		cursor = getCaretPosition(x - TEXT_PADDING_X);
 		scrollCursorIntoView();
 		return InputResult.PROCESSED;
 	}
@@ -324,7 +351,6 @@ public class WTextField extends WWidget {
 		int lastPos = 0;
 		checkScrollOffset();
 		String string = text.substring(scrollOffset);
-		TextRenderer font = getTextRenderer();
 		for (int i = 0; i < string.length(); i++) {
 			int w = font.getWidth(string.charAt(i) + "");
 			if (lastPos + w >= clickX) {
@@ -339,9 +365,8 @@ public class WTextField extends WWidget {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onCharTyped(CharInput input) {
-		if (!isEditable()) return InputResult.IGNORED;
-		insertText(input.asString());
+	public InputResult onCharTyped(char ch) {
+		insertText(ch + "");
 		return InputResult.PROCESSED;
 	}
 
@@ -391,9 +416,9 @@ public class WTextField extends WWidget {
 	}
 
 	@Environment(EnvType.CLIENT)
-	private void delete(KeyInput input, boolean backwards) {
+	private void delete(int modifiers, boolean backwards) {
 		if (select == -1 || select == cursor) {
-			select = skipCharacters(input.hasCtrl(), backwards ? -1 : 1);
+			select = skipCharacters((GLFW.GLFW_MOD_CONTROL & modifiers) != 0, backwards ? -1 : 1);
 		}
 		deleteSelection();
 	}
@@ -418,50 +443,50 @@ public class WTextField extends WWidget {
 	}
 
 	@Environment(EnvType.CLIENT)
-	public void onDirectionalKey(int direction, KeyInput input) {
-		if (input.hasShift()) {
+	public void onDirectionalKey(int direction, int modifiers) {
+		if ((GLFW.GLFW_MOD_SHIFT & modifiers) != 0) {
 			if (select == -1 || select == cursor) select = cursor;
-			cursor = skipCharacters(input.hasCtrl(), direction);
+			cursor = skipCharacters((GLFW.GLFW_MOD_CONTROL & modifiers) != 0, direction);
 		} else {
 			if (select != -1) {
 				cursor = direction < 0 ? Math.min(cursor, select) : Math.max(cursor, select);
 				select = -1;
 			} else {
-				cursor = skipCharacters(input.hasCtrl(), direction);
+				cursor = skipCharacters((GLFW.GLFW_MOD_CONTROL & modifiers) != 0, direction);
 			}
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public InputResult onKeyPressed(KeyInput input) {
+	public InputResult onKeyPressed(int ch, int key, int modifiers) {
 		if (!isEditable()) return InputResult.IGNORED;
 
-		if (input.isCopy()) {
+		if (Screen.isCopy(ch)) {
 			copySelection();
 			return InputResult.PROCESSED;
-		} else if (input.isPaste()) {
+		} else if (Screen.isPaste(ch)) {
 			paste();
 			return InputResult.PROCESSED;
-		} else if (input.isSelectAll()) {
+		} else if (Screen.isSelectAll(ch)) {
 			select = 0;
 			cursor = text.length();
 			return InputResult.PROCESSED;
 		}
 
-		switch (input.key()) {
-			case GLFW.GLFW_KEY_DELETE -> delete(input, false);
-			case GLFW.GLFW_KEY_BACKSPACE -> delete(input, true);
-			case GLFW.GLFW_KEY_LEFT -> onDirectionalKey(-1, input);
-			case GLFW.GLFW_KEY_RIGHT -> onDirectionalKey(1, input);
+		switch (ch) {
+			case GLFW.GLFW_KEY_DELETE -> delete(modifiers, false);
+			case GLFW.GLFW_KEY_BACKSPACE -> delete(modifiers, true);
+			case GLFW.GLFW_KEY_LEFT -> onDirectionalKey(-1, modifiers);
+			case GLFW.GLFW_KEY_RIGHT -> onDirectionalKey(1, modifiers);
 			case GLFW.GLFW_KEY_HOME, GLFW.GLFW_KEY_UP -> {
-				if (input.hasShift()) {
+				if ((GLFW.GLFW_MOD_SHIFT & modifiers) == 0) {
 					select = -1;
 				}
 				cursor = 0;
 			}
 			case GLFW.GLFW_KEY_END, GLFW.GLFW_KEY_DOWN -> {
-				if (input.hasShift()) {
+				if ((GLFW.GLFW_MOD_SHIFT & modifiers) == 0) {
 					select = -1;
 				}
 				cursor = text.length();

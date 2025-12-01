@@ -1,13 +1,10 @@
 package io.github.cottonmc.cotton.gui.client;
 
-import com.mojang.datafixers.util.Unit;
-import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.input.KeyInput;
+import net.minecraft.client.render.DiffuseLighting;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.screen.ScreenTexts;
@@ -15,20 +12,18 @@ import net.minecraft.text.Text;
 
 import io.github.cottonmc.cotton.gui.GuiDescription;
 import io.github.cottonmc.cotton.gui.SyncedGuiDescription;
-import io.github.cottonmc.cotton.gui.impl.ScreenNetworkingImpl;
 import io.github.cottonmc.cotton.gui.impl.VisualLogger;
 import io.github.cottonmc.cotton.gui.impl.client.CottonScreenImpl;
 import io.github.cottonmc.cotton.gui.impl.client.FocusElements;
 import io.github.cottonmc.cotton.gui.impl.client.MouseInputHandler;
 import io.github.cottonmc.cotton.gui.impl.client.NarrationHelper;
 import io.github.cottonmc.cotton.gui.impl.mixin.client.ScreenAccessor;
-import io.github.cottonmc.cotton.gui.networking.NetworkSide;
-import io.github.cottonmc.cotton.gui.networking.ScreenNetworking;
 import io.github.cottonmc.cotton.gui.widget.WPanel;
 import io.github.cottonmc.cotton.gui.widget.WWidget;
 import io.github.cottonmc.cotton.gui.widget.data.InputResult;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.opengl.GL11;
 
 /**
  * A screen for a {@link SyncedGuiDescription}.
@@ -100,7 +95,7 @@ public class CottonInventoryScreen<T extends SyncedGuiDescription> extends Handl
 	 *   * "left" and "top" are now (1.15) "x" and "y". A bit less self-explanatory, I guess.
 	 * * coordinates start at 0,0 at the topleft of the screen.
 	 */
-
+	
 	@Override
 	public void init() {
 		super.init();
@@ -193,47 +188,47 @@ public class CottonInventoryScreen<T extends SyncedGuiDescription> extends Handl
 	}
 
 	@Override
-	public boolean mouseClicked(Click click, boolean doubled) {
-		super.mouseClicked(click, doubled);
-
-		int containerX = (int) click.x() - x;
-		int containerY = (int) click.y() - y;
-		mouseInputHandler.checkFocus(containerX, containerY);
-		if (containerX<0 || containerY<0 || containerX>=width || containerY>=height) return true;
-		mouseInputHandler.onMouseDown(containerX, containerY, click, doubled);
-
-		return true;
-	}
-
-	@Override
-	public boolean mouseReleased(Click click) {
-		super.mouseReleased(click);
-
-		int containerX = (int) click.x() - x;
-		int containerY = (int) click.y() - y;
-		mouseInputHandler.onMouseUp(containerX, containerY, click);
-
-		return true;
-	}
-
-	@Override
-	public boolean mouseDragged(Click click, double offsetX, double offsetY) {
-		super.mouseDragged(click, offsetX, offsetY);
-
-		int containerX = (int) click.x() - x;
-		int containerY = (int) click.y() - y;
-		mouseInputHandler.onMouseDrag(containerX, containerY, click, offsetX, offsetY);
-
-		return true;
-	}
-
-	@Override
-	public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-		super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+	public boolean mouseClicked(double mouseX, double mouseY, int mouseButton) {
+		super.mouseClicked(mouseX, mouseY, mouseButton);
 
 		int containerX = (int)mouseX-x;
 		int containerY = (int)mouseY-y;
-		mouseInputHandler.onMouseScroll(containerX, containerY, horizontalAmount, verticalAmount);
+		mouseInputHandler.checkFocus(containerX, containerY);
+		if (containerX<0 || containerY<0 || containerX>=width || containerY>=height) return true;
+		mouseInputHandler.onMouseDown(containerX, containerY, mouseButton);
+
+		return true;
+	}
+
+	@Override
+	public boolean mouseReleased(double mouseX, double mouseY, int mouseButton) {
+		super.mouseReleased(mouseX, mouseY, mouseButton);
+
+		int containerX = (int)mouseX-x;
+		int containerY = (int)mouseY-y;
+		mouseInputHandler.onMouseUp(containerX, containerY, mouseButton);
+
+		return true;
+	}
+
+	@Override
+	public boolean mouseDragged(double mouseX, double mouseY, int mouseButton, double deltaX, double deltaY) {
+		super.mouseDragged(mouseX, mouseY, mouseButton, deltaX, deltaY);
+
+		int containerX = (int)mouseX-x;
+		int containerY = (int)mouseY-y;
+		mouseInputHandler.onMouseDrag(containerX, containerY, mouseButton, deltaX, deltaY);
+
+		return true;
+	}
+
+	@Override
+	public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+		super.mouseScrolled(mouseX, mouseY, amount);
+
+		int containerX = (int)mouseX-x;
+		int containerY = (int)mouseY-y;
+		mouseInputHandler.onMouseScroll(containerX, containerY, amount);
 
 		return true;
 	}
@@ -248,60 +243,60 @@ public class CottonInventoryScreen<T extends SyncedGuiDescription> extends Handl
 	}
 
 	@Override
-	public boolean charTyped(CharInput input) {
+	public boolean charTyped(char ch, int keyCode) {
 		WWidget focus = description.getFocus();
-		if (focus != null && focus.onCharTyped(input) == InputResult.PROCESSED) {
+		if (focus != null && focus.onCharTyped(ch) == InputResult.PROCESSED) {
 			return true;
 		}
 
-		return super.charTyped(input);
+		return super.charTyped(ch, keyCode);
 	}
 
 	@Override
-	public boolean keyPressed(KeyInput input) {
+	public boolean keyPressed(int ch, int keyCode, int modifiers) {
 		WWidget focus = description.getFocus();
-		if (focus != null && focus.onKeyPressed(input) == InputResult.PROCESSED) {
+		if (focus != null && focus.onKeyPressed(ch, keyCode, modifiers) == InputResult.PROCESSED) {
 			return true;
 		}
 
-		return super.keyPressed(input);
+		return super.keyPressed(ch, keyCode, modifiers);
 	}
 
 	@Override
-	public boolean keyReleased(KeyInput input) {
+	public boolean keyReleased(int ch, int keyCode, int modifiers) {
 		WWidget focus = description.getFocus();
-		if (focus != null && focus.onKeyReleased(input) == InputResult.PROCESSED) {
+		if (focus != null && focus.onKeyReleased(ch, keyCode, modifiers) == InputResult.PROCESSED) {
 			return true;
 		}
 
-		return super.keyReleased(input);
+		return super.keyReleased(ch, keyCode, modifiers);
 	}
 
 	@Override
 	protected void drawBackground(DrawContext context, float partialTicks, int mouseX, int mouseY) {} //This is just an AbstractContainerScreen thing; most Screens don't work this way.
-
-	/**
-	 * Paints the GUI description of this screen.
-	 *
-	 * @param context the draw context
-	 * @param mouseX  the absolute X coordinate of the mouse cursor
-	 * @param mouseY  the absolute Y coordinate of the mouse cursor
-	 * @param delta   the tick delta
-	 * @since 9.2.0
-	 */
-	public void paintDescription(DrawContext context, int mouseX, int mouseY, float delta) {
+	
+	private void paint(DrawContext context, int mouseX, int mouseY) {
+		renderBackground(context);
+		
 		if (description!=null) {
 			WPanel root = description.getRootPanel();
 			if (root!=null) {
+				GL11.glEnable(GL11.GL_SCISSOR_TEST);
+				Scissors.refreshScissors();
 				root.paint(context, x, y, mouseX-x, mouseY-y);
+				GL11.glDisable(GL11.GL_SCISSOR_TEST);
+				Scissors.checkStackIsEmpty();
 			}
 		}
 	}
 	
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float partialTicks) {
+		paint(context, mouseX, mouseY);
+		
 		super.render(context, mouseX, mouseY, partialTicks);
-
+		DiffuseLighting.disableGuiDepthLighting(); //Needed because super.render leaves dirty state
+		
 		if (description!=null) {
 			WPanel root = description.getRootPanel();
 			if (root!=null) {
@@ -332,22 +327,11 @@ public class CottonInventoryScreen<T extends SyncedGuiDescription> extends Handl
 			if (root!=null) {
 				root.tick();
 			}
-
-			description.sendDataSlotUpdates();
 		}
 	}
 
 	@Override
 	protected void addElementNarrations(NarrationMessageBuilder builder) {
 		if (description != null) NarrationHelper.addNarrations(description.getRootPanel(), builder);
-	}
-
-	@Override
-	public void onDisplayed() {
-		if (description != null) {
-			ScreenNetworking networking = description.getNetworking(NetworkSide.CLIENT);
-			((ScreenNetworkingImpl) networking).markReady();
-			networking.send(ScreenNetworkingImpl.CLIENT_READY_MESSAGE_KEY, Unit.INSTANCE);
-		}
 	}
 }

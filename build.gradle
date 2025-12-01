@@ -102,6 +102,19 @@ dependencies {
     implementation project(':libgui')
 }
 
+java {
+    // Ensure source uses Java 21 features and bytecode targets Java 17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_17
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // Generate Java 17-compatible bytecode regardless of the toolchain JDK
+    options.release = 17
+}
+
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
             mc_version: mc_version, flib_version: flib_version,

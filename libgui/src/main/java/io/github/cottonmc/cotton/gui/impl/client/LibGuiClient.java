@@ -7,7 +7,6 @@ import net.fabricmc.loader.api.FabricLoader;
 import blue.endless.jankson.Jankson;
 import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonObject;
-import io.github.cottonmc.cotton.gui.impl.Proxy;
 import io.github.cottonmc.cotton.gui.impl.ScreenNetworkingImpl;
 import io.github.cottonmc.jankson.JanksonFactory;
 import org.apache.logging.log4j.LogManager;
@@ -28,11 +27,11 @@ public class LibGuiClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		config = loadConfig();
 
-		ClientPlayNetworking.registerGlobalReceiver(ScreenNetworkingImpl.ScreenMessage.ID, (payload, context) -> {
-			ScreenNetworkingImpl.handle(context.client(), context.player(), payload);
+		ClientPlayNetworking.registerGlobalReceiver(ScreenNetworkingImpl.SCREEN_MESSAGE_S2C, (client, networkHandler, buf, responseSender) -> {
+			ScreenNetworkingImpl.handle(client, client.player, buf);
 		});
 
-		Proxy.proxy = new ClientProxy();
+		LibGuiShaders.register();
 	}
 
 	public static LibGuiConfig loadConfig() {
