@@ -42,7 +42,7 @@ jobs:
 
       - name: Run Gametests
         if: ${{ !inputs.is-release }}
-        run: ./gradlew runGameTestServer
+        run: ./gradlew runServer
 
       - name: Publish
         if: ${{ inputs.is-release }}
