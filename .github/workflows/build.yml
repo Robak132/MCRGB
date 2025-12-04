@@ -45,11 +45,19 @@ jobs:
         run: |
           mkdir -p run
           echo "eula=true" > run/eula.txt
-        
+          
       - name: Run Gametests
         if: ${{ !inputs.is-release }}
-        run: ./gradlew runServer
-        
+        run: |
+          set -e
+          ./gradlew runServer --stacktrace --info --warning-mode all || exit 1
+      
+          # Universal crash detection
+          if grep -R "---- Minecraft Crash Report ----" run; then
+            echo "::error::Detected Minecraft crash report in logs!"
+            exit 1
+          fi
+
       - name: Publish
         if: ${{ inputs.is-release }}
         env:
