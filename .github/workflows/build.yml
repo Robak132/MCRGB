@@ -43,13 +43,17 @@ jobs:
       - name: Accept EULA
         if: ${{ !inputs.is-release }}
         run: |
-          ls -l
           echo "eula=true" > eula.txt
         
       - name: Run Gametests
         if: ${{ !inputs.is-release }}
         run: ./gradlew runServer
 
+      - name: Accept EULA
+        if: ${{ !inputs.is-release }}
+        run: |
+          ls -l
+        
       - name: Publish
         if: ${{ inputs.is-release }}
         env:
