@@ -8,7 +8,6 @@ plugins {
     id "dev.ithundxr.silk" version "0.11.15" // https://github.com/ithundxr/silk
     id "me.modmuss50.mod-publish-plugin" version "0.8.4" // https://github.com/modmuss50/mod-publish-plugin
     id "net.neoforged.moddev.legacyforge" version "2.0.107" // https://projects.neoforged.net/neoforged/ModDevGradle
-    id 'org.parchmentmc.librarian.forgegradle' version '2.0.0'
     id 'org.spongepowered.mixin' version '0.7.+'
     id "org.jetbrains.gradle.plugin.idea-ext" version "1.1.8" // https://github.com/JetBrains/gradle-idea-ext-plugin
 }
@@ -32,13 +31,28 @@ base {
 
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
 
-minecraft {
-    // Use Parchment mappings that match the Forge/Minecraft version (1.20.1)
-    mappings channel: 'parchment', version: '2023.09.03-1.20.1'
-    copyIdeResources = true
-    generateRunFolders = true
-    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
 
+legacyForge {
+    version = "$minecraft_version-$forge_version"
+
+    // TODO - Try turning this on later
+    validateAccessTransformers = false
+
+    if (file("src/main/resources/META-INF/accesstransformer.cfg").exists()) {
+        accessTransformers.from "src/main/resources/META-INF/accesstransformer.cfg"
+    }
+
+    parchment {
+        minecraftVersion = '1.20.1'
+        mappingsVersion = '2023.09.03-1.20.1'
+    }
+
+    mods {
+        main {
+            sourceSet(sourceSets.main)
+        }
+    }
+    
     runs {
         configureEach {
             workingDirectory project.file('run')
