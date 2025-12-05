@@ -1,7 +1,7 @@
 pluginManagement {
 	repositories {
         maven { url = 'https://maven.minecraftforge.net' }
-        maven { url "https://maven.shedaniel.me/" }
+        maven { url = "https://maven.shedaniel.me/" }
         maven { url = 'https://maven.parchmentmc.org' }
         mavenCentral()
         gradlePluginPortal()
@@ -9,3 +9,6 @@ pluginManagement {
 }
 
 rootProject.name = 'MCRGB-Forgified'
+
+include ':LibGui-Forgified'
+project(':LibGui-Forgified').projectDir = file('D:\\Dokumenty\\LibGui-Forgified')

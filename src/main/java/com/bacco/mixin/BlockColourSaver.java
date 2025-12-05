@@ -1,7 +1,7 @@
 package com.bacco.mixin;
 
-import com.bacco.mcrgb_forge.IItemBlockColourSaver;
-import com.bacco.mcrgb_forge.SpriteDetails;
+import com.bacco.IItemBlockColourSaver;
+import com.bacco.SpriteDetails;
 import net.minecraft.world.item.Item;
 import org.spongepowered.asm.mixin.Mixin;
 
