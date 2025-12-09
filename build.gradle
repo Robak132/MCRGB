@@ -23,6 +23,7 @@ def getSecret(String key) {
 repositories {
     maven { url "https://maven.shedaniel.me/" }
     maven { url "https://maven.minecraftforge.net" }
+    maven { url 'https://jitpack.io' }
     maven {
         url = uri("https://maven.pkg.github.com/Robak132/LibGui-Forgified")
         credentials {
