@@ -12,8 +12,10 @@ import io.github.robak132.mcrgb_forge.MCRGB;
 import io.github.robak132.mcrgb_forge.Palette;
 import io.github.robak132.mcrgb_forge.SpriteDetails;
 import java.io.File;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -27,6 +29,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -55,6 +58,7 @@ public class MCRGBClient {
 
     @Getter
     private static final MCRGBClient instance = new MCRGBClient();
+    private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private List<Palette> palettes = new ArrayList<>();
     private int totalBlocks = 0;
     private int fails = 0;
@@ -62,7 +66,7 @@ public class MCRGBClient {
     private boolean scanned = false;
 
     public static void init() {
-        FMLJavaModLoadingContext.get().getModEventBus().addListener(event -> ClothConfigIntegration.init());
+        FMLJavaModLoadingContext.get().getModEventBus().addListener(ClothConfigIntegration::init);
     }
 
     public static boolean isScanned() {
@@ -119,22 +123,26 @@ public class MCRGBClient {
             dir.mkdirs();
         }
         try {
-            Files.writeString(Path.of(path + fileName), str, Charset.defaultCharset());
+            Files.writeString(Path.of(path + fileName), str, StandardCharsets.UTF_8);
         } catch (Exception e) {
-            log.error("Could not write MCRGB colours to file: {}", e.getMessage());
+            log.error("Could not write json to file: {}", e.getMessage());
         }
     }
 
-    public static String readJson(String path) {
+    public static <T> T readJson(String path, TypeToken<T> type, T defaultValue) {
         try {
-            return Files.readString(Path.of(path));
+            String str = Files.readString(Path.of(path));
+            T data = gson.fromJson(str, type.getType());
+            return data != null ? data : defaultValue;
+        } catch (IOException e) {
+            log.warn("Failed to read {}: {}", path, e.getMessage());
         } catch (Exception e) {
-            log.error("Could not read MCRGB colours from file: {}", e.getMessage());
-            return "";
+            log.warn("Failed to parse {}: {}", path, e.getMessage());
         }
+        return defaultValue;
     }
 
-    //Calculate the dominant colours in a list of colours
+    //Calculate the dominant colors in a list of colors
     public static Set<ColourGroup> groupColours(List<ColourVector> rgblist) {
         Set<ColourGroup> groups = new HashSet<>();
 
@@ -200,12 +208,14 @@ public class MCRGBClient {
     }
 
     public static void refreshColours() {
+        Minecraft minecraft = Minecraft.getInstance();
         //get top sprite of stone block default state
-        TextureAtlasSprite defSprite = Minecraft.getInstance().getModelManager().getBlockModelShaper().getBlockModel(Blocks.STONE.defaultBlockState())
-                .getQuads(Blocks.STONE.defaultBlockState(), Direction.UP, RandomSource.create()).get(0).getSprite();
+        IForgeBakedModel bakedModel = minecraft.getModelManager().getBlockModelShaper().getBlockModel(Blocks.STONE.defaultBlockState());
+        TextureAtlasSprite defSprite = bakedModel.getQuads(Blocks.STONE.defaultBlockState(), Direction.UP, RandomSource.create(), ModelData.EMPTY, null).get(0)
+                .getSprite();
         //get id of the atlas containing above
         //use atlas id to get OpenGL ID. Atlas contains ALL blocks
-        int glID = Minecraft.getInstance().getTextureManager().getTexture(defSprite.atlasLocation()).getId();
+        int glID = minecraft.getTextureManager().getTexture(defSprite.atlasLocation()).getId();
         //get width and height from OpenGL by binding texture
         RenderSystem.bindTexture(glID);
         int width = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_WIDTH);
@@ -231,9 +241,7 @@ public class MCRGBClient {
                 return;
             }
             sprites.forEach(sprite -> {
-                if (sprite.contents().name().getPath().equals("block/grass_block_side")) {
-                    return;
-                }
+
                 //get coords of sprite in atlas
                 int spriteX = sprite.getX();
                 int spriteY = sprite.getY();
@@ -241,10 +249,10 @@ public class MCRGBClient {
                 int spriteH = sprite.contents().height();
                 //convert coords to byte position
                 int firstPixel = (spriteY * width + spriteX) * 4;
-                ArrayList<ColourVector> rgbList = new ArrayList<>();
+                List<ColourVector> rgbList = new ArrayList<>();
                 int biomeColour = 0xFFFFFF;
                 try {
-                    biomeColour = Minecraft.getInstance().getBlockColors().getColor(block.defaultBlockState(), null, null, 0);
+                    biomeColour = minecraft.getBlockColors().getColor(block.defaultBlockState(), null, null, 0);
                 } catch (Exception e) {
                     log.warn("Could not find biome colour for block: {}. Please report this logfile to https://github.com/bacco-bacco/MCRGB/issues",
                             block.getName());
@@ -257,24 +265,22 @@ public class MCRGBClient {
                     for (int pos = firstInRow; pos < firstInRow + 4 * spriteW; pos += 4) {
                         //retrieve bytes for RGBA values
                         //"& 0xFF" does logical and with 11111111. this extracts the last 8 bits, converting to unsigned int
-                        int pixelColour = FastColor.ABGR32.color(pixels[pos + 3], pixels[pos] & 0xFF, pixels[pos + 1] & 0xFF, pixels[pos + 2] & 0xFF);
-                        int alpha = FastColor.ABGR32.alpha(pixelColour);
-                        if (biomeColour != -1 && (!block.defaultBlockState().is(Blocks.GRASS_BLOCK) || sprite.contents().name().getPath()
-                                .equals("block/grass_block_top"))) {
+                        int pixelColour = FastColor.ARGB32.color(pixels[pos + 3], pixels[pos] & 0xFF, pixels[pos + 1] & 0xFF, pixels[pos + 2] & 0xFF);
+                        int alpha = FastColor.ARGB32.alpha(pixelColour);
+                        if (biomeColour != -1 && (!block.defaultBlockState().is(Blocks.GRASS_BLOCK) || sprite.contents().name().getPath().equals("block/grass_block_top"))) {
                             pixelColour = FastColor.ARGB32.multiply(biomeColour, pixelColour);
                         }
                         //if the pixel is not fully transparent, add to the list
                         if (alpha > 0) {
-                            ColourVector c = new ColourVector(FastColor.ABGR32.red(pixelColour), FastColor.ABGR32.green(pixelColour),
-                                    FastColor.ABGR32.blue(pixelColour));
-                            rgbList.add(c);
+                            rgbList.add(new ColourVector(FastColor.ARGB32.red(pixelColour), FastColor.ARGB32.green(pixelColour),
+                                    FastColor.ARGB32.blue(pixelColour)));
                         }
                     }
                 }
                 //Calculate the dominant colours
                 Set<ColourGroup> colourGroups = groupColours(rgbList);
 
-                //Add sprite name and each dominant colour to the IItemBlockColourSaver
+                //Add sprite name and each dominant color to the IItemBlockColourSaver
                 SpriteDetails spriteDetails = new SpriteDetails();
                 String[] namesplit = sprite.contents().name().toString().split("/");
                 spriteDetails.setName(namesplit[namesplit.length - 1]);
@@ -285,15 +291,14 @@ public class MCRGBClient {
                 storage.setBlock(block.asItem().getDescriptionId());
                 storage.addSpriteDetails(spriteDetails);
             });
-            storage.getSpriteDetails().forEach(details -> ((IItemBlockColourSaver) block.asItem()).mcrgb_forge$addSpriteDetails(details));
+            IItemBlockColourSaver iItemBlockColourSaver = (IItemBlockColourSaver) block.asItem();
+            storage.getSpriteDetails().forEach(iItemBlockColourSaver::mcrgb_forge$addSpriteDetails);
             blockColourList.add(storage);
         });
 
         //Write arraylist to json
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        String blockColoursJson = gson.toJson(blockColourList);
-        writeJson(blockColoursJson, "./mcrgb_forge_colours/", "file.json");
-        Minecraft.getInstance().player.displayClientMessage(Component.translatable("message.mcrgb_forge.reloaded"), false);
+        writeJson(gson.toJson(blockColourList), "./mcrgb_forge_colours/", "file.json");
+        minecraft.player.displayClientMessage(Component.translatable("message.mcrgb_forge.reloaded"), false);
     }
 
     public static @NotNull Set<TextureAtlasSprite> getSprites(Block block) {
@@ -314,25 +319,12 @@ public class MCRGBClient {
     }
 
     public static void savePalettes() {
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        String blockColoursJson = gson.toJson(instance.palettes);
-        writeJson(blockColoursJson, "./mcrgb_forge_colours/", "palettes.json");
+        writeJson(gson.toJson(instance.palettes), "./mcrgb_forge_colours/", "palettes.json");
     }
 
     public static void loadPalettes() {
-        List<Palette> loadedPalettes;
-        TypeToken<List<Palette>> t = new TypeToken<>() {
-        };
-        try {
-            loadedPalettes = new Gson().fromJson(readJson("./mcrgb_forge_colours/palettes.json"), t.getType());
-        } catch (Exception e) {
-            loadedPalettes = new ArrayList<>();
-        }
-        if (loadedPalettes == null) {
-            loadedPalettes = new ArrayList<>();
-        }
-
-        instance.palettes = loadedPalettes;
+        instance.palettes = readJson("./mcrgb_forge_colours/palettes.json", new TypeToken<List<Palette>>() {
+        }, new ArrayList<>());
     }
 
     @SubscribeEvent
@@ -341,7 +333,8 @@ public class MCRGBClient {
             return;
         }
         try {
-            BlockColourStorage[] loadedBlockColourArray = new Gson().fromJson(readJson("./mcrgb_forge_colours/file.json"), BlockColourStorage[].class);
+            List<BlockColourStorage> loadedBlockColourArray = readJson("./mcrgb_forge_colours/file.json", new TypeToken<List<BlockColourStorage>>() {
+            }, new ArrayList<>());
             ForgeRegistries.BLOCKS.forEach(block -> {
                 for (BlockColourStorage storage : loadedBlockColourArray) {
                     if (storage.getBlock().equals(block.asItem().getDescriptionId())) {

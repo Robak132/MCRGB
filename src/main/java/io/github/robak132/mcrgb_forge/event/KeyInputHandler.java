@@ -7,6 +7,7 @@ import io.github.robak132.mcrgb_forge.gui.ColourGui;
 import io.github.robak132.mcrgb_forge.gui.ColourScreen;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
 import net.minecraftforge.event.TickEvent;
@@ -44,7 +45,7 @@ public class KeyInputHandler {
         @SubscribeEvent
         public static void onClientTick(TickEvent.ClientTickEvent event) {
             if (event.phase != TickEvent.Phase.END) return;
-            var mc = net.minecraft.client.Minecraft.getInstance();
+            Minecraft mc = Minecraft.getInstance();
             if (colourInvKey != null && colourInvKey.consumeClick()){
                 if (mc.screen == null) {
                     mc.setScreen(new ColourScreen(new ColourGui(new ColourVector(0xFFFFFFFF))));

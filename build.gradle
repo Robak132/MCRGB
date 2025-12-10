@@ -16,8 +16,8 @@ if (secretsFile.exists()) {
     }
 }
 
-def getSecret(String key) {
-    return secrets.getProperty(key) ?: System.getenv(key)
+def getSecret(String key, fallback = null) {
+    return secrets.getProperty(key) ?: System.getenv(key) ?: fallback
 }
 
 repositories {
@@ -36,15 +36,16 @@ repositories {
 
 version = project.mod_version
 group = project.maven_group
+base.archivesName = project.archives_base_name
 
-base {
-    archivesName = project.archives_base_name
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    toolchain { languageVersion = JavaLanguageVersion.of(17) }
+    withSourcesJar()
 }
 
-println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
-
 minecraft {
-    // Use Parchment mappings that match the Forge/Minecraft version (1.20.1)
     mappings channel: 'parchment', version: '2023.09.03-1.20.1'
     copyIdeResources = true
     generateRunFolders = true
@@ -92,9 +93,12 @@ minecraft {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 dependencies {
-    minecraft "net.minecraftforge:forge:1.20.1-47.4.13"
-    implementation 'org.projectlombok:lombok:1.18.38'
-    implementation "io.github.robak132:libgui_forge:8.1.1"
+    minecraft("net.minecraftforge:forge:1.20.1-47.4.0")
+    if (getSecret("DEV", true)) {
+        implementation fg.deobf("io.github.robak132:libgui_forge:8.1.3")
+    } else {
+        compileOnly fg.deobf("io.github.robak132:libgui_forge:8.1.3")
+    }
     api fg.deobf("me.shedaniel.cloth:cloth-config-forge:11.1.136")
 
     compileOnly("org.projectlombok:lombok:1.18.42")
@@ -103,43 +107,11 @@ dependencies {
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
-java {
-    // Ensure source uses Java 21 features and bytecode targets Java 17
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-    toolchain { languageVersion = JavaLanguageVersion.of(17) }
-    withSourcesJar()
-}
-
+// Proper Mixin setup for Forge
 mixin {
-    // MixinGradle Settings
     add sourceSets.main, 'mixins.mcrgb_forge.refmap.json'
     config 'mixins.mcrgb_forge.json'
 
     debug.verbose = true
     debug.export = true
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-    options.release = 17
-}
-
-tasks.named('jar', Jar).configure {
-    manifest {
-        attributes([
-                'Specification-Title'     : mod_id,
-                'Specification-Vendor'    : mod_authors,
-                'Specification-Version'   : '1',
-                'Implementation-Title'    : project.name,
-                'Implementation-Version'  : project.jar.archiveVersion,
-                'Implementation-Vendor'   : mod_authors,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
-    }
-    finalizedBy 'reobfJar'
-}
-
-tasks.register('cleanJar') {
-    delete 'build/libs'
 }

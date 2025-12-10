@@ -97,7 +97,7 @@ public class ClothConfigIntegration {
         return false;
     }
 
-    public static void init() {
+    public static void init(FMLClientSetupEvent event) {
         if (isClothConfigLoaded()) {
             log.info("Cloth Config detected, registering config screen.");
             ModLoadingContext.get().registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class,
