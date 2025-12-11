@@ -1,6 +1,6 @@
 {
     "key.category.mcrgb_forge.mcrgb_forge" : "MCRGB",
-    "key.mcrgb_forge.colour_inv_open" : "Open Color Picker",
+    "key.mcrgb_forge.color_inv_open": "Open Color Picker",
     "message.mcrgb_forge.reloaded" : "MCRGB: Reloaded Colors",
     "tooltip.mcrgb_forge.shift_prompt" : "Hold SHIFT to view color info",
     "ui.mcrgb_forge.header" : "MCRGB Color Picker",
@@ -21,7 +21,7 @@
     "ui.mcrgb_forge.back_info" : "Back to MCRGB menu ↩",
     "ui.mcrgb_forge.edit_palette_info" : "Edit Palette",
     "ui.mcrgb_forge.delete_palette_info" : "Delete Palette",
-    "ui.mcrgb_forge.saved_colours" : "Saved Palettes",
+    "ui.mcrgb_forge.saved_colors": "Saved Palettes",
     "ui.mcrgb_forge.refine" : "Refine...",
     "options.mcrgb_forge.all_contexts" : "All Contexts",
     "options.mcrgb_forge.picker_only" : "Color Picker Only",

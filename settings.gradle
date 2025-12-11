@@ -24,6 +24,6 @@ def getSecret(String key, fallback = null) {
 
 // Conditionally include LibGui-Forgified
 if (getSecret("DEV", false)) {
-    include("LibGui-Forge")
-    project(":LibGui-Forge").projectDir = file("../LibGui-Forge")
+//    include("LibGui-Forge")
+//    project(":LibGui-Forge").projectDir = file("../LibGui-Forge")
 }

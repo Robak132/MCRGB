@@ -4,7 +4,7 @@
     "package": "io.github.robak132.mcrgb_forge.mixin",
     "compatibilityLevel": "JAVA_17",
     "mixins": [
-      "BlockColourSaver"
+      "BlockColorSaver"
     ],
     "injectors": {
         "defaultRequire": 1

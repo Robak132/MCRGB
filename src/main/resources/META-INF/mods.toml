@@ -7,7 +7,7 @@ issueTrackerURL="https://github.com/Robak132/MCRGB/issues"
 modId="mcrgb_forge"
 version="0.3.1"
 displayName="MCRGB: Forgified"
-description="Forge fork of MCRGB - Colour Picker for Minecraft Blocks!"
+description="Forge fork of MCRGB - Color Picker for Minecraft Blocks!"
 authors="Robak132, Bacco"
 
 [[dependencies.mcrgb_forge]]

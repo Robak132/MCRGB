@@ -3,23 +3,23 @@ package io.github.robak132.mcrgb_forge.client;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.mojang.blaze3d.systems.RenderSystem;
-import io.github.robak132.mcrgb_forge.BlockColourStorage;
-import io.github.robak132.mcrgb_forge.ColourGroup;
-import io.github.robak132.mcrgb_forge.ColourVector;
-import io.github.robak132.mcrgb_forge.IItemBlockColourSaver;
-import io.github.robak132.mcrgb_forge.MCRGB;
-import io.github.robak132.mcrgb_forge.Palette;
-import io.github.robak132.mcrgb_forge.SpriteDetails;
+import com.mojang.blaze3d.platform.NativeImage;
+import io.github.robak132.mcrgb_forge.MCRGBMod;
+import io.github.robak132.mcrgb_forge.client.analysis.BlockColorStorage;
+import io.github.robak132.mcrgb_forge.client.analysis.ColorClustering;
+import io.github.robak132.mcrgb_forge.client.analysis.ColorVector;
+import io.github.robak132.mcrgb_forge.client.analysis.IItemBlockColorSaver;
+import io.github.robak132.mcrgb_forge.client.analysis.Palette;
+import io.github.robak132.mcrgb_forge.client.analysis.SpriteColor;
+import io.github.robak132.mcrgb_forge.client.analysis.SpriteDetails;
+import io.github.robak132.mcrgb_forge.client.integration.ClothConfigIntegration;
+import io.github.robak132.mcrgb_forge.config.MCRGBConfig;
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -28,15 +28,14 @@ import lombok.extern.slf4j.Slf4j;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FastColor;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraftforge.api.distmarker.Dist;
@@ -49,11 +48,9 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
-import org.lwjgl.BufferUtils;
-import org.lwjgl.opengl.GL11;
 
-@Mod.EventBusSubscriber(modid = MCRGB.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
-@Slf4j(topic = MCRGB.MOD_ID)
+@Mod.EventBusSubscriber(modid = MCRGBMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
+@Slf4j(topic = MCRGBMod.MOD_ID)
 public class MCRGBClient {
 
     @Getter
@@ -143,159 +140,106 @@ public class MCRGBClient {
     }
 
     //Calculate the dominant colors in a list of colors
-    public static Set<ColourGroup> groupColours(List<ColourVector> rgblist) {
-        Set<ColourGroup> groups = new HashSet<>();
+    public static void refreshColors() {
+        Minecraft mc = Minecraft.getInstance();
 
-        //Loop through every pixel
-        for (int i = 0; i < rgblist.size(); i++) {
-            ColourVector iPix = new ColourVector(rgblist.get(i).r, rgblist.get(i).g, rgblist.get(i).b);
+        // Reset counters
+        instance.totalBlocks = 0;
+        instance.successes = 0;
+        instance.fails = 0;
 
-            //check if already in a group
-            boolean iInGroup = false;
-            for (ColourGroup group : groups) {
-                if (group.getPixels().contains(iPix)) {
-                    iInGroup = true;
-                    break;
-                }
-            }
+        List<BlockColorStorage> result = new ArrayList<>();
 
-            //if I'm not in a group, create a new one and add i to it...
-            if (!iInGroup) {
-                ColourGroup newGroup = new ColourGroup();
-                newGroup.addPixel(iPix);
-
-                //loop through all the pixels after i, and compare them to i
-                for (int j = i + 1; j < rgblist.size(); j++) {
-                    //if the distance is less than 100, add j to the group (if it is not already in a group)
-                    ColourVector jPix = new ColourVector(rgblist.get(j).r, rgblist.get(j).g, rgblist.get(j).b);
-                    if (jPix.distance(iPix) < 100) {
-                        boolean jInGroup = false;
-                        for (ColourGroup group : groups) {
-                            if (group.getPixels().contains(jPix)) {
-                                jInGroup = true;
-                                break;
-                            }
-                        }
-
-                        if (!jInGroup) {
-                            newGroup.addPixel(jPix);
-                        }
-                    }
-
-                }
-                //finally, add the new group to the list of groups
-                groups.add(newGroup);
-            }
-        }
-        //calculate the average rgb value of each group, convert to hex and calculate weight
-        for (ColourGroup group : groups) {
-            ColourVector sum = new ColourVector(0, 0, 0);
-            int counter = 0;
-            for (ColourVector colour : group.getPixels()) {
-                sum.add(colour);
-                counter++;
-            }
-            if (counter == 0) {
-                return Collections.emptySet();
-            }
-            ColourVector avg = sum.div(counter);
-            group.setMeanColour(avg);
-            group.setMeanHex(avg.getHex());
-            group.setWeight((int) ((float) counter / (float) rgblist.size() * 100));
-        }
-
-        return groups;
-    }
-
-    public static void refreshColours() {
-        Minecraft minecraft = Minecraft.getInstance();
-        //get top sprite of stone block default state
-        IForgeBakedModel bakedModel = minecraft.getModelManager().getBlockModelShaper().getBlockModel(Blocks.STONE.defaultBlockState());
-        TextureAtlasSprite defSprite = bakedModel.getQuads(Blocks.STONE.defaultBlockState(), Direction.UP, RandomSource.create(), ModelData.EMPTY, null).get(0)
-                .getSprite();
-        //get id of the atlas containing above
-        //use atlas id to get OpenGL ID. Atlas contains ALL blocks
-        int glID = minecraft.getTextureManager().getTexture(defSprite.atlasLocation()).getId();
-        //get width and height from OpenGL by binding texture
-        RenderSystem.bindTexture(glID);
-        int width = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_WIDTH);
-        int height = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_HEIGHT);
-        int size = width * height;
-        //Make byte buffer and load full atlas into buffer.
-        ByteBuffer buffer = BufferUtils.createByteBuffer(size * 4);
-        GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
-        //convert buffer to an array of bytes
-        byte[] pixels = new byte[size * 4];
-        buffer.get(pixels);
-        List<BlockColourStorage> blockColourList = new ArrayList<>();
-        //loop through every block in the game
+        // Loop through all blocks
         ForgeRegistries.BLOCKS.forEach(block -> {
-            if (block.asItem().getDescriptionId().equals(Items.AIR.getDescriptionId())) {
+            if (block == Blocks.AIR) {
                 return;
             }
-            ((IItemBlockColourSaver) block.asItem()).mcrgb_forge$clearSpriteDetails();
-            BlockColourStorage storage = new BlockColourStorage();
-            instance.totalBlocks += 1;
+
+            instance.totalBlocks++;
+
+            IItemBlockColorSaver saver = (IItemBlockColorSaver) block.asItem();
+            saver.mcrgb_forge$clearSpriteDetails();
+
+            BlockColorStorage storage = new BlockColorStorage();
+            storage.setBlockId(block.asItem().getDescriptionId());
+
             Set<TextureAtlasSprite> sprites = getSprites(block);
             if (sprites.isEmpty()) {
                 return;
             }
-            sprites.forEach(sprite -> {
 
-                //get coords of sprite in atlas
-                int spriteX = sprite.getX();
-                int spriteY = sprite.getY();
-                int spriteW = sprite.contents().width();
-                int spriteH = sprite.contents().height();
-                //convert coords to byte position
-                int firstPixel = (spriteY * width + spriteX) * 4;
-                List<ColourVector> rgbList = new ArrayList<>();
-                int biomeColour = 0xFFFFFF;
-                try {
-                    biomeColour = minecraft.getBlockColors().getColor(block.defaultBlockState(), null, null, 0);
-                } catch (Exception e) {
-                    log.warn("Could not find biome colour for block: {}. Please report this logfile to https://github.com/bacco-bacco/MCRGB/issues",
-                            block.getName());
+            for (TextureAtlasSprite sprite : sprites) {
+                SpriteContents contents = sprite.contents();
+                NativeImage image = contents.getOriginalImage();
+                if (image == null) {
+                    instance.fails++;
+                    continue;
                 }
-                //for each horizontal row in the sprite
-                for (int row = 0; row < spriteH; row++) {
-                    int firstInRow = firstPixel + row * width * 4;
-                    //loop from first pixel in row to the sprite width.
-                    //Note: Looping in increments of 4, because each pixel is 4 bytes. (R,G,B and A)
-                    for (int pos = firstInRow; pos < firstInRow + 4 * spriteW; pos += 4) {
-                        //retrieve bytes for RGBA values
-                        //"& 0xFF" does logical and with 11111111. this extracts the last 8 bits, converting to unsigned int
-                        int pixelColour = FastColor.ARGB32.color(pixels[pos + 3], pixels[pos] & 0xFF, pixels[pos + 1] & 0xFF, pixels[pos + 2] & 0xFF);
-                        int alpha = FastColor.ARGB32.alpha(pixelColour);
-                        if (biomeColour != -1 && (!block.defaultBlockState().is(Blocks.GRASS_BLOCK) || sprite.contents().name().getPath().equals("block/grass_block_top"))) {
-                            pixelColour = FastColor.ARGB32.multiply(biomeColour, pixelColour);
+
+                int w = contents.width();
+                int h = contents.height();
+
+                List<ColorVector> pixelList = new ArrayList<>(w * h);
+
+                // biome tint
+                int biomeColor = 0xFFFFFF;
+                try {
+                    biomeColor = mc.getBlockColors().getColor(block.defaultBlockState(), null, null, 0);
+                } catch (Exception ignored) {
+                }
+
+                boolean applyBiomeTint =
+                        biomeColor != -1 && (!block.defaultBlockState().is(Blocks.GRASS_BLOCK) || contents.name().getPath().equals("block/grass_block_top"));
+
+                // Read pixels
+                for (int y = 0; y < h; y++) {
+                    for (int x = 0; x < w; x++) {
+                        int argb = image.getPixelRGBA(x, y);
+
+                        int a = (argb >>> 24) & 0xFF;
+                        if (a == 0) {
+                            continue;
                         }
-                        //if the pixel is not fully transparent, add to the list
-                        if (alpha > 0) {
-                            rgbList.add(new ColourVector(FastColor.ARGB32.red(pixelColour), FastColor.ARGB32.green(pixelColour),
-                                    FastColor.ARGB32.blue(pixelColour)));
+
+                        if (applyBiomeTint) {
+                            argb = FastColor.ARGB32.multiply(biomeColor, argb);
                         }
+
+                        int r = FastColor.ARGB32.red(argb);
+                        int g = FastColor.ARGB32.green(argb);
+                        int b = FastColor.ARGB32.blue(argb);
+
+                        pixelList.add(new ColorVector(r, g, b));
                     }
                 }
-                //Calculate the dominant colours
-                Set<ColourGroup> colourGroups = groupColours(rgbList);
-                SpriteDetails spriteDetails = new SpriteDetails();
-                String spriteName = sprite.contents().name().getPath();
-                spriteDetails.setName(spriteName);
-                for (ColourGroup group : colourGroups) {
-                    spriteDetails.add(group.toSpriteColour(rgbList.size()));
+
+                if (pixelList.isEmpty()) {
+                    continue;
                 }
-                storage.setBlockId(block.asItem().getDescriptionId());
-                storage.addSpriteDetails(spriteDetails);
-            });
-            IItemBlockColourSaver iItemBlockColourSaver = (IItemBlockColourSaver) block.asItem();
-            storage.getSpriteDetails().forEach(iItemBlockColourSaver::mcrgb_forge$addSpriteDetails);
-            blockColourList.add(storage);
+
+                List<SpriteColor> dominant = ColorClustering.kMeansOkLab(pixelList, 3, 8, 4096);
+
+                SpriteDetails details = new SpriteDetails();
+                details.setName(sprite.contents().name().getPath());
+
+                for (SpriteColor sc : dominant) {
+                    details.add(sc);
+                }
+
+                storage.addSpriteDetails(details);
+                saver.mcrgb_forge$addSpriteDetails(details);
+
+                instance.successes++;
+            }
+
+            result.add(storage);
         });
 
-        //Write arraylist to json
-        writeJson(gson.toJson(blockColourList), "./mcrgb_forge_colours/", "file.json");
-        minecraft.player.displayClientMessage(Component.translatable("message.mcrgb_forge.reloaded"), false);
+        // Save file
+        writeJson(gson.toJson(result), "./mcrgb_forge_colors/", "file.json");
+
+        Minecraft.getInstance().player.displayClientMessage(Component.translatable("message.mcrgb_forge.reloaded"), false);
     }
 
     public static @NotNull Set<TextureAtlasSprite> getSprites(Block block) {
@@ -316,11 +260,11 @@ public class MCRGBClient {
     }
 
     public static void savePalettes() {
-        writeJson(gson.toJson(instance.palettes), "./mcrgb_forge_colours/", "palettes.json");
+        writeJson(gson.toJson(instance.palettes), "./mcrgb_forge_colors/", "palettes.json");
     }
 
     public static void loadPalettes() {
-        instance.palettes = readJson("./mcrgb_forge_colours/palettes.json", new TypeToken<List<Palette>>() {
+        instance.palettes = readJson("./mcrgb_forge_colors/palettes.json", new TypeToken<List<Palette>>() {
         }, new ArrayList<>());
     }
 
@@ -330,20 +274,20 @@ public class MCRGBClient {
             return;
         }
         try {
-            List<BlockColourStorage> loadedBlockColourArray = readJson("./mcrgb_forge_colours/file.json", new TypeToken<List<BlockColourStorage>>() {
+            List<BlockColorStorage> loadedBlockColorArray = readJson("./mcrgb_forge_colors/file.json", new TypeToken<List<BlockColorStorage>>() {
             }, new ArrayList<>());
             ForgeRegistries.BLOCKS.forEach(block -> {
-                for (BlockColourStorage storage : loadedBlockColourArray) {
+                for (BlockColorStorage storage : loadedBlockColorArray) {
                     if (storage.getBlockId().equals(block.asItem().getDescriptionId())) {
-                        IItemBlockColourSaver blockColourSaver = (IItemBlockColourSaver) block.asItem();
-                        storage.getSpriteDetails().forEach(blockColourSaver::mcrgb_forge$addSpriteDetails);
+                        IItemBlockColorSaver blockColorSaver = (IItemBlockColorSaver) block.asItem();
+                        storage.getSpriteDetails().forEach(blockColorSaver::mcrgb_forge$addSpriteDetails);
                         break;
                     }
                 }
             });
             setScanned(true);
         } catch (Exception e) {
-            refreshColours();
+            refreshColors();
         }
     }
 
@@ -352,15 +296,15 @@ public class MCRGBClient {
         if (!MCRGBConfig.ALWAYS_SHOW_TOOLTIPS.get()) {
             return;
         }
-        IItemBlockColourSaver item = (IItemBlockColourSaver) event.getItemStack().getItem();
+        IItemBlockColorSaver item = (IItemBlockColorSaver) event.getItemStack().getItem();
         for (int i = 0; i < item.mcrgb_forge$getLength(); i++) {
             List<String> strings = item.mcrgb_forge$getSpriteDetails(i).getStrings();
-            List<Integer> colours = item.mcrgb_forge$getSpriteDetails(i).getTextColours();
+            List<Integer> colors = item.mcrgb_forge$getSpriteDetails(i).getTextColors();
             if (!strings.isEmpty()) {
                 if (Screen.hasShiftDown()) {
                     for (int j = 0; j < strings.size(); j++) {
                         MutableComponent text = Component.literal(strings.get(j)).withStyle(ChatFormatting.GRAY);
-                        MutableComponent text2 = (MutableComponent) Component.literal("⬛").toFlatList(Style.EMPTY.withColor(colours.get(j))).get(0);
+                        MutableComponent text2 = (MutableComponent) Component.literal("⬛").toFlatList(Style.EMPTY.withColor(colors.get(j))).get(0);
                         if (j > 0) {
                             text2.append(text);
                         } else {

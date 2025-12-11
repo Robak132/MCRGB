@@ -1,10 +1,10 @@
 package io.github.robak132.mcrgb_forge.event;
 
-import static io.github.robak132.mcrgb_forge.MCRGB.MOD_ID;
+import static io.github.robak132.mcrgb_forge.MCRGBMod.MOD_ID;
 
-import io.github.robak132.mcrgb_forge.ColourVector;
-import io.github.robak132.mcrgb_forge.gui.ColourGui;
-import io.github.robak132.mcrgb_forge.gui.ColourScreen;
+import io.github.robak132.mcrgb_forge.client.analysis.ColorVector;
+import io.github.robak132.mcrgb_forge.client.gui.ColorGui;
+import io.github.robak132.mcrgb_forge.client.gui.ColorScreen;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -18,12 +18,12 @@ import net.minecraftforge.api.distmarker.Dist;
 
 public class KeyInputHandler {
     public static final String KEY_CATEGORY_MCRGB = "key.category.mcrgb_forge.mcrgb_forge";
-    public static final String KEY_COLOUR_INV_OPEN = "key.mcrgb_forge.colour_inv_open";
-    public static KeyMapping colourInvKey;
+    public static final String KEY_COLOR_INV_OPEN = "key.mcrgb_forge.color_inv_open";
+    public static KeyMapping colorInvKey;
 
     public static void registerStatic() {
-        colourInvKey = new KeyMapping(
-            KEY_COLOUR_INV_OPEN,
+        colorInvKey = new KeyMapping(
+            KEY_COLOR_INV_OPEN,
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_I,
             KEY_CATEGORY_MCRGB
@@ -34,8 +34,8 @@ public class KeyInputHandler {
     public static class ModEvents {
         @SubscribeEvent
         public static void registerKeys(RegisterKeyMappingsEvent event) {
-            if (colourInvKey != null) {
-                event.register(colourInvKey);
+            if (colorInvKey != null) {
+                event.register(colorInvKey);
             }
         }
     }
@@ -46,9 +46,9 @@ public class KeyInputHandler {
         public static void onClientTick(TickEvent.ClientTickEvent event) {
             if (event.phase != TickEvent.Phase.END) return;
             Minecraft mc = Minecraft.getInstance();
-            if (colourInvKey != null && colourInvKey.consumeClick()){
+            if (colorInvKey != null && colorInvKey.consumeClick()){
                 if (mc.screen == null) {
-                    mc.setScreen(new ColourScreen(new ColourGui(new ColourVector(0xFFFFFFFF))));
+                    mc.setScreen(new ColorScreen(new ColorGui(new ColorVector(0xFFFFFFFF))));
                 } else {
                     mc.setScreen(null);
                 }
