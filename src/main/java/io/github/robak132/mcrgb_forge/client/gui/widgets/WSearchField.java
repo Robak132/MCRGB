@@ -30,4 +30,8 @@ public class WSearchField extends WTextField {
         super.renderSelection(context, x, y - 4, visibleText);
     }
 
+    @Override
+    protected void renderSuggestion(GuiGraphics context, int x, int y) {
+        super.renderSuggestion(context, x, y - 4);
+    }
 }

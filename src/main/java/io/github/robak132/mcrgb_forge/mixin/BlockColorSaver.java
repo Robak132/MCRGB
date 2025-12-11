@@ -13,9 +13,11 @@ import org.spongepowered.asm.mixin.Unique;
 public abstract class BlockColorSaver implements IItemBlockColorSaver {
     @Unique
     private final ArrayList<SpriteDetails> mcrgb_forge$spriteDetails = new ArrayList<>();
+
     @Unique
     private double mcrgb_forge$score = 0;
 
+    @Unique
     public SpriteDetails mcrgb_forge$getSpriteDetails(int i) {
         if (this.mcrgb_forge$spriteDetails.get(i) == null) {
             this.mcrgb_forge$spriteDetails.add(new SpriteDetails());
@@ -23,22 +25,27 @@ public abstract class BlockColorSaver implements IItemBlockColorSaver {
         return this.mcrgb_forge$spriteDetails.get(i);
     }
 
+    @Unique
     public void mcrgb_forge$addSpriteDetails(SpriteDetails spriteDetails) {
         this.mcrgb_forge$spriteDetails.add(spriteDetails);
     }
 
+    @Unique
     public void mcrgb_forge$clearSpriteDetails() {
         this.mcrgb_forge$spriteDetails.clear();
     }
 
+    @Unique
     public int mcrgb_forge$getLength() {
         return this.mcrgb_forge$spriteDetails.size();
     }
 
+    @Unique
     public double mcrgb_forge$getScore() {
         return this.mcrgb_forge$score;
     }
 
+    @Unique
     public void mcrgb_forge$setScore(double score) {
         this.mcrgb_forge$score = score;
     }
