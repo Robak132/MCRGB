@@ -1,9 +1,9 @@
 package io.github.robak132.mcrgb_forge.client.gui.widgets;
 
-import io.github.robak132.mcrgb_forge.client.analysis.ColorVector;
 import io.github.robak132.libgui_forge.widget.WSprite;
 import io.github.robak132.libgui_forge.widget.data.InputResult;
 import io.github.robak132.mcrgb_forge.client.gui.AbstractGuiDescription;
+import io.github.robak132.mcrgb_forge.colors.RGB;
 import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.resources.ResourceLocation;
@@ -36,7 +36,7 @@ public class WColorPreviewIcon extends WSprite {
                 setOpaqueTint(color);
                 break;
             case 2:
-                gui.setColor(new ColorVector(color));
+                gui.setColor(new RGB(color));
                 break;
         }
         return InputResult.PROCESSED;

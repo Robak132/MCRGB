@@ -1,10 +1,10 @@
 package io.github.robak132.mcrgb_forge.client.gui.widgets;
 
-import io.github.robak132.mcrgb_forge.client.analysis.ColorVector;
 import com.mojang.blaze3d.systems.RenderSystem;
 import io.github.robak132.libgui_forge.widget.WSprite;
 import io.github.robak132.libgui_forge.widget.data.InputResult;
 import io.github.robak132.mcrgb_forge.client.gui.AbstractGuiDescription;
+import io.github.robak132.mcrgb_forge.colors.RGB;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FastColor;
@@ -86,7 +86,7 @@ public class WPickableTexture extends WSprite {
 
         int pixelColor = FastColor.ARGB32.color(pixels[pos + 3], pixels[pos] & 0xFF, pixels[pos + 1] & 0xFF, pixels[pos + 2] & 0xFF);
         pixelColor = FastColor.ARGB32.multiply(pixelColor, tint);
-        gui.setColor(new ColorVector(pixelColor));
+        gui.setColor(new RGB(pixelColor));
         return false;
     }
 

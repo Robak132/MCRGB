@@ -2,7 +2,6 @@ package io.github.robak132.mcrgb_forge.client.gui.widgets;
 
 import static io.github.robak132.mcrgb_forge.MCRGBMod.MOD_ID;
 
-import io.github.robak132.mcrgb_forge.client.analysis.ColorVector;
 import io.github.robak132.mcrgb_forge.client.MCRGBClient;
 import io.github.robak132.mcrgb_forge.client.analysis.Palette;
 import io.github.robak132.libgui_forge.client.BackgroundPainter;
@@ -14,6 +13,7 @@ import io.github.robak132.libgui_forge.widget.data.HorizontalAlignment;
 import io.github.robak132.libgui_forge.widget.data.VerticalAlignment;
 import io.github.robak132.libgui_forge.widget.icon.TextureIcon;
 import io.github.robak132.mcrgb_forge.client.gui.AbstractGuiDescription;
+import io.github.robak132.mcrgb_forge.colors.RGB;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
@@ -77,7 +77,7 @@ public class WSavedPalettesArea extends WPlainPanel {
     Palette createPalette() {
         Palette newPallet = new Palette();
         for (WColorPreviewIcon savedColor : savedColors) {
-            newPallet.addColor(new ColorVector(savedColor.color));
+            newPallet.addColor(new RGB(savedColor.color));
         }
         return newPallet;
     }
@@ -85,7 +85,7 @@ public class WSavedPalettesArea extends WPlainPanel {
     void updatePalette(WPaletteWidget updatingPalette) {
         for (int i = 0; i < savedColors.size(); i++) {
             updatingPalette.savedColors.get(i).setColor(savedColors.get(i).color);
-            updatingPalette.palette.setColor(i, new ColorVector(savedColors.get(i).color));
+            updatingPalette.palette.setColor(i, new RGB(savedColors.get(i).color));
         }
     }
 

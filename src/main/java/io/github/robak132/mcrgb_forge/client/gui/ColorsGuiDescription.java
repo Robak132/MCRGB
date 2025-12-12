@@ -14,27 +14,33 @@ import io.github.robak132.libgui_forge.widget.data.HorizontalAlignment;
 import io.github.robak132.libgui_forge.widget.data.Insets;
 import io.github.robak132.libgui_forge.widget.data.Texture;
 import io.github.robak132.libgui_forge.widget.icon.TextureIcon;
+
 import io.github.robak132.mcrgb_forge.client.MCRGBClient;
-import io.github.robak132.mcrgb_forge.client.analysis.ColorVector;
 import io.github.robak132.mcrgb_forge.client.analysis.SpriteColor;
 import io.github.robak132.mcrgb_forge.client.analysis.SpriteDetails;
+
 import io.github.robak132.mcrgb_forge.client.gui.widgets.WButtonWithTooltip;
 import io.github.robak132.mcrgb_forge.client.gui.widgets.WColorGuiSlot;
 import io.github.robak132.mcrgb_forge.client.gui.widgets.WColorScrollBar;
 import io.github.robak132.mcrgb_forge.client.gui.widgets.WColorWheel;
 import io.github.robak132.mcrgb_forge.client.gui.widgets.WGradientSlider;
 import io.github.robak132.mcrgb_forge.client.gui.widgets.WSearchField;
+
 import io.github.robak132.mcrgb_forge.client.integration.ClothConfigIntegration;
+import io.github.robak132.mcrgb_forge.colors.Color;
+import io.github.robak132.mcrgb_forge.colors.Color.ColorModel;
+import io.github.robak132.mcrgb_forge.colors.HSL;
+import io.github.robak132.mcrgb_forge.colors.HSV;
+import io.github.robak132.mcrgb_forge.colors.LAB;
 import io.github.robak132.mcrgb_forge.config.MCRGBConfig;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
+import io.github.robak132.mcrgb_forge.colors.RGB;
+import java.util.*;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FastColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
@@ -45,20 +51,21 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
 
     private final List<ItemStack> stacks = new ArrayList<>();
     private final List<WColorGuiSlot> wColorGuiSlots = new ArrayList<>();
-    boolean enableSliderListeners = true;
-    ColorMode mode = ColorMode.RGB;
+    private final Map<Block, List<SpriteDetails>> blockSpriteMap;
+    private boolean enableSliderListeners = true;
+    private ColorModel mode = ColorModel.RGB;
 
     WLabel rLabel = new WLabel(Component.translatable("ui.mcrgb_forge.r_for_red"), 0xFFFF0000);
     WSlider rSlider = new WSlider(0, 255, Direction.Plane.VERTICAL);
-    WTextField rInput = new WTextField(Component.literal(Integer.toString(inputColor.getR())));
+    WTextField rInput = new WTextField(Component.empty());
 
     WLabel gLabel = new WLabel(Component.translatable("ui.mcrgb_forge.g_for_green"), 0xFF00FF00);
     WSlider gSlider = new WSlider(0, 255, Direction.Plane.VERTICAL);
-    WTextField gInput = new WTextField(Component.literal(Integer.toString(inputColor.getG())));
+    WTextField gInput = new WTextField(Component.empty());
 
     WLabel bLabel = new WLabel(Component.translatable("ui.mcrgb_forge.b_for_blue"), 0xFF0000FF);
     WSlider bSlider = new WSlider(0, 255, Direction.Plane.VERTICAL);
-    WTextField bInput = new WTextField(Component.literal(Integer.toString(inputColor.getB())));
+    WTextField bInput = new WTextField(Component.empty());
 
     WButton rgbButton = new WButton(Component.translatable("ui.mcrgb_forge.rgb"));
     WButton hsvButton = new WButton(Component.translatable("ui.mcrgb_forge.hsv"));
@@ -80,9 +87,7 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
     WPlainPanel inputs = new WPlainPanel();
     WGridPanel armourSlots = new WGridPanel();
 
-    private final Map<Block, List<SpriteDetails>> blockSpriteMap;
-
-    public ColorsGuiDescription(ColorVector launchColor, Map<Block, List<SpriteDetails>> blockSpriteMap) {
+    public ColorsGuiDescription(RGB launchColor, Map<Block, List<SpriteDetails>> blockSpriteMap) {
         this.blockSpriteMap = blockSpriteMap;
 
         WButtonWithTooltip refreshButton = new WButtonWithTooltip(new TextureIcon(ResourceLocation.fromNamespaceAndPath(MOD_ID, "refresh.png")),
@@ -101,10 +106,7 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
         refreshButton.setSize(20, 20);
         refreshButton.setIconSize(18);
         refreshButton.setAlignment(HorizontalAlignment.LEFT);
-        refreshButton.setOnClick(() -> {
-            MCRGBClient.triggerScan();
-            colorSort();
-        });
+        refreshButton.setOnClick(MCRGBClient::triggerScan);
 
         mainPanel.add(searchField, 6, 0, 4, 1);
         searchField.setSize(4 * 18, 11);
@@ -130,7 +132,6 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
 
         mainPanel.add(new WLabel(Component.translatable("ui.mcrgb_forge.header")), 0, 0, 2, 1);
         mainPanel.add(savedPalettesArea, 0, SLOTS_HEIGHT);
-
         mainPanel.add(sliderArea, 11, 2, 6, 7);
 
         mainPanel.add(rLabel, 6, 7, 1, 1);
@@ -140,65 +141,42 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
         gLabel.setLocation(247, 50);
         bLabel.setLocation(283, 50);
 
+        RGB rgb = inputColor.toRGB();
         sliderArea.add(rSlider, 0, 18, 18, 108);
-        rSlider.setValue(inputColor.getR());
+        rSlider.setValue(rgb.red());
         sliderArea.add(gSlider, 36, 18, 18, 108);
-        gSlider.setValue(inputColor.getG());
+        gSlider.setValue(rgb.green());
         sliderArea.add(bSlider, 72, 18, 18, 108);
-        bSlider.setValue(inputColor.getB());
+        bSlider.setValue(rgb.blue());
 
         mainPanel.add(inputs, 10, 9, 2, 1);
         inputs.add(rInput, 14, 9, 26, 1);
         inputs.add(gInput, 50, 9, 26, 1);
         inputs.add(bInput, 86, 9, 26, 1);
 
-        rSlider.setValueChangeListener((int value) -> {
-            if (enableSliderListeners) {
-                sliderAdjust('r', value);
-            }
-        });
-        gSlider.setValueChangeListener((int value) -> {
-            if (enableSliderListeners) {
-                sliderAdjust('g', value);
-            }
-        });
-        bSlider.setValueChangeListener((int value) -> {
-            if (enableSliderListeners) {
-                sliderAdjust('b', value);
-            }
-        });
+        rSlider.setValueChangeListener(this::onSliderValueChange);
+        gSlider.setValueChangeListener(this::onSliderValueChange);
+        bSlider.setValueChangeListener(this::onSliderValueChange);
 
-        rSlider.setDraggingFinishedListener((int value) -> {
-            if (!MCRGBConfig.SLIDER_CONSTANT_UPDATE.get()) {
-                colorSort();
-            }
-        });
-        gSlider.setDraggingFinishedListener((int value) -> {
-            if (!MCRGBConfig.SLIDER_CONSTANT_UPDATE.get()) {
-                colorSort();
-            }
-        });
-        bSlider.setDraggingFinishedListener((int value) -> {
-            if (!MCRGBConfig.SLIDER_CONSTANT_UPDATE.get()) {
-                colorSort();
-            }
-        });
+        rSlider.setDraggingFinishedListener(this::onSliderDrag);
+        gSlider.setDraggingFinishedListener(this::onSliderDrag);
+        bSlider.setDraggingFinishedListener(this::onSliderDrag);
 
         wheelValueSlider.setValueChangeListener((int value) -> {
-            colorWheel.setOpaqueTint(FastColor.ARGB32.color(255, value, value, value));
+            colorWheel.setOpaqueTint(new RGB(255, value, value, value).argb());
             colorWheel.pickAtCursor();
         });
 
-        rInput.setChangedListener((String value) -> RGBTyped('r', value));
-        gInput.setChangedListener((String value) -> RGBTyped('g', value));
-        bInput.setChangedListener((String value) -> RGBTyped('b', value));
+        rInput.setChangedListener(this::onValueEntered);
+        gInput.setChangedListener(this::onValueEntered);
+        bInput.setChangedListener(this::onValueEntered);
 
-        hexInput.setChangedListener((String value) -> hexTyped(value, false));
+        hexInput.setChangedListener(this::onHexEntered);
         searchField.setChangedListener((String value) -> colorSort());
 
-        rgbButton.setOnClick(() -> setColorMode(ColorMode.RGB));
-        hsvButton.setOnClick(() -> setColorMode(ColorMode.HSV));
-        hslButton.setOnClick(() -> setColorMode(ColorMode.HSL));
+        rgbButton.setOnClick(() -> setColorMode(ColorModel.RGB));
+        hsvButton.setOnClick(() -> setColorMode(ColorModel.HSV));
+        hslButton.setOnClick(() -> setColorMode(ColorModel.HSL));
 
         colorWheelToggle.setOnToggle(this::toggleColorWheel);
 
@@ -223,25 +201,30 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
         mainPanel.add(colorWheelToggle, 17, 10);
         colorWheelToggle.setLocation(314, 180);
 
-        setColor(launchColor);
         mainPanel.validate(this);
         root.validate(this);
+        setColor(launchColor);
     }
 
-    public void setColorMode(ColorMode cm) {
+    private void onSliderDrag(int value) {
+        if (!MCRGBConfig.SLIDER_CONSTANT_UPDATE.get()) {
+            colorSort();
+        }
+    }
+
+    public void setColorMode(ColorModel cm) {
         enableSliderListeners = false;
         mode = cm;
-        ColorVector color = new ColorVector(inputColor.getHex());
 
         switch (mode) {
             case RGB:
+                inputColor = inputColor.toRGB();
                 rLabel.setText(Component.translatable("ui.mcrgb_forge.r_for_red"));
                 rLabel.setColor(0xFFFF0000);
                 gLabel.setText(Component.translatable("ui.mcrgb_forge.g_for_green"));
                 gLabel.setColor(0xFF00FF00);
                 bLabel.setText(Component.translatable("ui.mcrgb_forge.b_for_blue"));
                 bLabel.setColor(0xFF0000FF);
-
                 rSlider.setMinValue(0);
                 gSlider.setMinValue(0);
                 bSlider.setMinValue(0);
@@ -253,6 +236,7 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
                 hslButton.setEnabled(true);
                 break;
             case HSV:
+                inputColor = inputColor.toHSV();
                 rLabel.setText(Component.translatable("ui.mcrgb_forge.h_for_hue_hsv"));
                 rLabel.setColor(0xFF3F3F3F);
                 gLabel.setText(Component.translatable("ui.mcrgb_forge.s_for_sat_hsv"));
@@ -287,212 +271,95 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
                 hslButton.setEnabled(false);
                 break;
         }
-        hexTyped(color.getHex(), true);
-        inputColor = color;
         enableSliderListeners = true;
+        refreshComponents();
     }
 
-    public void sliderAdjust(char d, int value) {
-        switch (mode) {
-            case RGB:
-                if (d == 'r') {
-                    if (inputColor.getR() == value) {
-                        return;
-                    }
-                    inputColor.setR(value);
-                    rInput.setText(Integer.toString(inputColor.getR()));
-                }
-                if (d == 'g') {
-                    if (inputColor.getG() == value) {
-                        return;
-                    }
-                    inputColor.setG(value);
-                    gInput.setText(Integer.toString(inputColor.getG()));
-                }
-                if (d == 'b') {
-                    if (inputColor.getB() == value) {
-                        return;
-                    }
-                    inputColor.setB(value);
-                    bInput.setText(Integer.toString(inputColor.getB()));
-                }
-                break;
-            case HSV:
-                inputColor = ColorVector.fromHSV(rSlider.getValue(), gSlider.getValue(), bSlider.getValue());
-                rInput.setText(Integer.toString(rSlider.getValue()));
-                gInput.setText(Integer.toString(gSlider.getValue()));
-                bInput.setText(Integer.toString(bSlider.getValue()));
-                break;
-            case HSL:
-                inputColor = ColorVector.fromHSL(rSlider.getValue(), gSlider.getValue(), bSlider.getValue());
-                rInput.setText(Integer.toString(rSlider.getValue()));
-                gInput.setText(Integer.toString(gSlider.getValue()));
-                bInput.setText(Integer.toString(bSlider.getValue()));
-                break;
+    private void onSliderValueChange(int value) {
+        if (!enableSliderListeners) return;
+        inputColor = Color.create(mode, rSlider.getValue(), gSlider.getValue(), bSlider.getValue());
+        refreshComponents();
+    }
+
+    private void onValueEntered(String value) {
+        if (!rInput.isFocused() && !gInput.isFocused() && !bInput.isFocused()) {
+            return;
         }
-        hexInput.setText(inputColor.getHex());
+
+        int rInputValue = Integer.parseInt(rInput.getText());
+        int gInputValue = Integer.parseInt(gInput.getText());
+        int bInputValue = Integer.parseInt(bInput.getText());
+
+        inputColor = Color.create(mode, rInputValue, gInputValue, bInputValue);
+        refreshComponents();
+    }
+
+    private void onHexEntered(String value) {
+//        enableSliderListeners = false;
+//
+//        if (!modeChanged && (hexInput.isFocused() || value.equals(inputColor.toHexString()))) {
+//            enableSliderListeners = true;
+//            return;
+//        }
+//        switch (mode) {
+//            case RGB:
+//                rSlider.setValue(color.getR());
+//                rInput.setText(Integer.toString(color.getR()));
+//
+//                gSlider.setValue(color.getG());
+//                gInput.setText(Integer.toString(color.getG()));
+//
+//                bSlider.setValue(color.getB());
+//                bInput.setText(Integer.toString(color.getB()));
+//                break;
+//            case HSV:
+//                rSlider.setValue(color.getHue());
+//                rInput.setText(Integer.toString(color.getHue()));
+//
+//                gSlider.setValue(color.getSatV());
+//                gInput.setText(Integer.toString(color.getSatV()));
+//
+//                bSlider.setValue(color.getVal());
+//                bInput.setText(Integer.toString(color.getVal()));
+//                break;
+//            case HSL:
+//                rSlider.setValue(color.getHue());
+//                rInput.setText(Integer.toString(color.getHue()));
+//
+//                gSlider.setValue(color.getSatL());
+//                gInput.setText(Integer.toString(color.getSatL()));
+//
+//                bSlider.setValue(color.getLight());
+//                bInput.setText(Integer.toString(color.getLight()));
+//                break;
+//        }
+//        inputColor = color;
+//        updateArmour();
+//        colorSort();
+//        enableSliderListeners = true;
+    }
+
+    private void refreshComponents() {
+        Number[] values = inputColor.values();
+        rSlider.setValue(values[1].intValue());
+        rInput.setText(Integer.toString(values[1].intValue()));
+
+        gSlider.setValue(values[2].intValue());
+        gInput.setText(Integer.toString(values[2].intValue()));
+
+        bSlider.setValue(values[3].intValue());
+        bInput.setText(Integer.toString(values[3].intValue()));
+
+        hexInput.setText(inputColor.toHexString());
         updateArmour();
+        if (colorWheelToggle.getToggle()) {
+            RGB rgb = inputColor.toRGB();
+            int val = Math.max(Math.max(rgb.red(), rgb.green()), rgb.blue());
+            colorWheel.setOpaqueTint(new RGB(val, val, val).argb());
+        }
         if (MCRGBConfig.SLIDER_CONSTANT_UPDATE.get()) {
             colorSort();
         }
-    }
-
-    public void RGBTyped(char d, String value) {
-        switch (mode) {
-            case RGB:
-                if (!rInput.isFocused() && !gInput.isFocused() && !bInput.isFocused()) {
-                    return;
-                }
-                if (Integer.parseInt(value) > 255 || Integer.parseInt(value) < 0) {
-                    return;
-                }
-
-                if (d == 'r') {
-                    if (inputColor.getR() == Integer.parseInt(value)) {
-                        return;
-                    }
-                    inputColor.setR(Integer.parseInt(value));
-                    rSlider.setValue(inputColor.getR());
-                }
-                if (d == 'g') {
-                    if (inputColor.getG() == Integer.parseInt(value)) {
-                        return;
-                    }
-                    inputColor.setG(Integer.parseInt(value));
-                    gSlider.setValue(inputColor.getG());
-                }
-                if (d == 'b') {
-                    if (inputColor.getB() == Integer.parseInt(value)) {
-                        return;
-                    }
-                    inputColor.setB(Integer.parseInt(value));
-                    bSlider.setValue(inputColor.getB());
-                }
-                break;
-            case HSV:
-                if (!rInput.isFocused() && !gInput.isFocused() && !bInput.isFocused()) {
-                    return;
-                }
-                if (d == 'r') {
-                    if (Integer.parseInt(value) > 360 || Integer.parseInt(value) < 0) {
-                        return;
-                    }
-                } else {
-                    if (Integer.parseInt(value) > 100 || Integer.parseInt(value) < 0) {
-                        return;
-                    }
-                }
-                if (d == 'r') {
-                    if (inputColor.getR() == Integer.parseInt(value)) {
-                        return;
-                    }
-                    rSlider.setValue(Integer.parseInt(value));
-                }
-                if (d == 'g') {
-                    if (inputColor.getG() == Integer.parseInt(value)) {
-                        return;
-                    }
-                    gSlider.setValue(Integer.parseInt(value));
-                }
-                if (d == 'b') {
-                    if (inputColor.getB() == Integer.parseInt(value)) {
-                        return;
-                    }
-                    bSlider.setValue(Integer.parseInt(value));
-                }
-                inputColor = ColorVector.fromHSV(rSlider.getValue(), gSlider.getValue(), bSlider.getValue());
-                break;
-            case HSL:
-                if (!rInput.isFocused() && !gInput.isFocused() && !bInput.isFocused()) {
-                    return;
-                }
-                if (d == 'r') {
-                    if (Integer.parseInt(value) > 360 || Integer.parseInt(value) < 0) {
-                        return;
-                    }
-                } else {
-                    if (Integer.parseInt(value) > 100 || Integer.parseInt(value) < 0) {
-                        return;
-                    }
-                }
-
-                if (d == 'r') {
-                    if (inputColor.getR() == Integer.parseInt(value)) {
-                        return;
-                    }
-                    rSlider.setValue(Integer.parseInt(value));
-                }
-                if (d == 'g') {
-                    if (inputColor.getG() == Integer.parseInt(value)) {
-                        return;
-                    }
-                    gSlider.setValue(Integer.parseInt(value));
-                }
-                if (d == 'b') {
-                    if (inputColor.getB() == Integer.parseInt(value)) {
-                        return;
-                    }
-                    bSlider.setValue(Integer.parseInt(value));
-                }
-                inputColor = ColorVector.fromHSL(rSlider.getValue(), gSlider.getValue(), bSlider.getValue());
-                break;
-        }
-        hexInput.setText(inputColor.getHex());
-        updateArmour();
-        if (colorWheelToggle.getToggle()) {
-            int val = Math.max(Math.max(inputColor.getR(), inputColor.getG()), inputColor.getB());
-            colorWheel.setOpaqueTint(new ColorVector(val, val, val).asInt());
-        }
-    }
-
-    public void hexTyped(String value, boolean modeChanged) {
-        enableSliderListeners = false;
-
-        ColorVector color = new ColorVector(value);
-        if (!modeChanged && !hexInput.isFocused()) {
-            enableSliderListeners = true;
-            return;
-        }
-        if (!modeChanged && value.equals(inputColor.getHex())) {
-            enableSliderListeners = true;
-            return;
-        }
-        switch (mode) {
-            case RGB:
-                rSlider.setValue(color.getR());
-                rInput.setText(Integer.toString(color.getR()));
-
-                gSlider.setValue(color.getG());
-                gInput.setText(Integer.toString(color.getG()));
-
-                bSlider.setValue(color.getB());
-                bInput.setText(Integer.toString(color.getB()));
-                break;
-            case HSV:
-                rSlider.setValue(color.getHue());
-                rInput.setText(Integer.toString(color.getHue()));
-
-                gSlider.setValue(color.getSatV());
-                gInput.setText(Integer.toString(color.getSatV()));
-
-                bSlider.setValue(color.getVal());
-                bInput.setText(Integer.toString(color.getVal()));
-                break;
-            case HSL:
-                rSlider.setValue(color.getHue());
-                rInput.setText(Integer.toString(color.getHue()));
-
-                gSlider.setValue(color.getSatL());
-                gInput.setText(Integer.toString(color.getSatL()));
-
-                bSlider.setValue(color.getLight());
-                bInput.setText(Integer.toString(color.getLight()));
-                break;
-        }
-        inputColor = color;
-        updateArmour();
-        colorSort();
-        enableSliderListeners = true;
     }
 
     public void updateArmour() {
@@ -510,40 +377,41 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
 
     public void colorSort() {
         stacks.clear();
-        ColorVector query = inputColor;
-
+        LAB query = inputColor.toLAB();
         Map<Block, Double> blockScores = new HashMap<>();
 
+        // Preload scan results
+        Map<Block, List<SpriteDetails>> map = blockSpriteMap;
+        if (map == null) return;
+
         ForgeRegistries.BLOCKS.forEach(block -> {
-
-            List<SpriteDetails> sprites = blockSpriteMap.get(block);
+            List<SpriteDetails> sprites = map.get(block);
             if (sprites == null || sprites.isEmpty()) return;
+            double bestScore = Double.MAX_VALUE;
+            for (SpriteDetails sprite : sprites) {
+                List<SpriteColor> colors = sprite.getColors();
+                if (colors == null || colors.isEmpty()) continue;
+                for (SpriteColor sc : colors) {
+                    LAB cv = sc.color().toLAB();
 
-            double best = Double.MAX_VALUE;
+                    double weight = sc.weight();   // already normalized 0–1
+                    if (weight <= 0.00001) continue;
 
-            for (SpriteDetails details : sprites) {
-                for (SpriteColor sc : details.getColors()) {
-                    ColorVector cv = sc.color();
-                    if (cv == null) continue;
+                    double alpha = cv.alpha();     // you can add this field or hardcode to 1.0
+                    if (alpha < 0.05) continue;    // throw out near-transparent pixels
 
-                    double w = sc.weight();
-                    double dist = query.distanceSquared(cv) + 0.000001;
-                    dist /= Math.pow(w, 5);
-
-                    if (dist < best)
-                        best = dist;
+                    double dist = LAB.distanceSquared(query, cv);
+                    double w = Math.pow(weight * alpha, 1.5);
+                    double score = dist / (w + 0.001);
+                    if (score < bestScore)
+                        bestScore = score;
                 }
             }
-
-            blockScores.put(block, best);
-
-            if (block.getName().getString().toUpperCase()
-                    .contains(searchField.getText().toUpperCase())) {
+            blockScores.put(block, bestScore);
+            if (block.getName().getString().toUpperCase().contains(searchField.getText().toUpperCase())) {
                 stacks.add(new ItemStack(block));
             }
         });
-
-        // sort by distance
         stacks.sort((a, b) -> {
             Block blA = Block.byItem(a.getItem());
             Block blB = Block.byItem(b.getItem());
@@ -582,41 +450,44 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
     }
 
     @Override
-    public void setColor(ColorVector color) {
-        switch (mode) {
+    public void setColor(Color color) {
+        switch (this.mode) {
             case RGB:
-                rSlider.setValue(color.getR());
-                rInput.setText(Integer.toString(color.getR()));
+                RGB rgb = color.toRGB();
+                rSlider.setValue(rgb.red());
+                rInput.setText(Integer.toString(rgb.red()));
 
-                gSlider.setValue(color.getG());
-                gInput.setText(Integer.toString(color.getG()));
+                gSlider.setValue(rgb.green());
+                gInput.setText(Integer.toString(rgb.green()));
 
-                bSlider.setValue(color.getB());
-                bInput.setText(Integer.toString(color.getB()));
+                bSlider.setValue(rgb.blue());
+                bInput.setText(Integer.toString(rgb.blue()));
                 break;
             case HSV:
-                rSlider.setValue(color.getHue());
-                rInput.setText(Integer.toString(color.getHue()));
+                HSV hsv = color.toHSV();
+                rSlider.setValue(Math.round(hsv.hue()));
+                rInput.setText(String.valueOf(hsv.hue()));
 
-                gSlider.setValue(color.getSatV());
-                gInput.setText(Integer.toString(color.getSatV()));
+                gSlider.setValue(Math.round(hsv.saturation()));
+                gInput.setText(String.valueOf(hsv.saturation()));
 
-                bSlider.setValue(color.getVal());
-                bInput.setText(Integer.toString(color.getVal()));
+                bSlider.setValue(Math.round(hsv.value()));
+                bInput.setText(String.valueOf(hsv.value()));
                 break;
             case HSL:
-                rSlider.setValue(color.getHue());
-                rInput.setText(Integer.toString(color.getHue()));
+                HSL hsl = color.toHSL();
+                rSlider.setValue(Math.round(hsl.hue()));
+                rInput.setText(String.valueOf(hsl.hue()));
 
-                gSlider.setValue(color.getSatL());
-                gInput.setText(Integer.toString(color.getSatL()));
+                gSlider.setValue(Math.round(hsl.saturation()));
+                gInput.setText(String.valueOf(hsl.saturation()));
 
-                bSlider.setValue(color.getLight());
-                bInput.setText(Integer.toString(color.getLight()));
+                bSlider.setValue(Math.round(hsl.lightness()));
+                bInput.setText(String.valueOf(hsl.lightness()));
                 break;
         }
         inputColor = color;
-        hexInput.setText(inputColor.getHex());
+        hexInput.setText(inputColor.toHexString());
         updateArmour();
         colorSort();
         scrollBar.setValue(0);
@@ -624,7 +495,7 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
     }
 
     public void openBlockInfoGui(ItemStack stack) {
-        Minecraft.getInstance().setScreen(new CottonClientScreen(new BlockGuiDescription(stack, inputColor, this)));
+        Minecraft.getInstance().setScreen(new CottonClientScreen(new BlockGuiDescription(stack, this.inputColor.toRGB())));
     }
 
     public void toggleColorWheel(boolean isToggled) {
@@ -663,10 +534,5 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
         }
         root.validate(this);
     }
-
-    public enum ColorMode {
-        RGB, HSV, HSL
-    }
-
 
 }

@@ -1,5 +1,6 @@
 package io.github.robak132.mcrgb_forge.client.analysis;
 
+import io.github.robak132.mcrgb_forge.colors.RGB;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -53,7 +54,7 @@ public class ColorScanner {
             List<SpriteDetails> spriteDetailsList = new ArrayList<>();
 
             for (TextureAtlasSprite sprite : sprites) {
-                List<ColorVector> pixels = getSpritePixels(sprite);
+                List<RGB> pixels = getSpritePixels(sprite);
                 if (pixels.isEmpty()) {
                     continue;
                 }
@@ -96,8 +97,8 @@ public class ColorScanner {
     /**
      * Extracts visible pixel colors from a sprite.
      */
-    private List<ColorVector> getSpritePixels(TextureAtlasSprite sprite) {
-        List<ColorVector> pixels = new ArrayList<>();
+    private List<RGB> getSpritePixels(TextureAtlasSprite sprite) {
+        List<RGB> pixels = new ArrayList<>();
         int w = sprite.contents().width();
         int h = sprite.contents().height();
 
@@ -105,16 +106,16 @@ public class ColorScanner {
             for (int x = 0; x < w; x++) {
                 int argb = sprite.getPixelRGBA(0, x, y);
                 int a = (argb >> 24) & 0xFF;
-                if (a == 0) {
-                    continue;
-                }
+                if (a == 0) continue;
 
-                int r = (argb >> 16) & 0xFF;
-                int g = (argb >> 8) & 0xFF;
-                int b = argb & 0xFF;
-                pixels.add(new ColorVector(r, g, b));
+                int r = (argb      ) & 0xFF;
+                int g = (argb >> 8 ) & 0xFF;
+                int b = (argb >> 16) & 0xFF;
+
+                pixels.add(new RGB(a, r, g, b));
             }
         }
+
         return pixels;
     }
 

@@ -7,10 +7,7 @@ import lombok.Data;
 @Data
 public class SpriteDetails {
     private String name;
-    private List<SpriteColor> colors = new ArrayList<>();
-
-    public SpriteDetails() {
-    }
+    private List<SpriteColor> colors;
 
     public SpriteDetails(String name, List<SpriteColor> colors) {
         this.name = name;

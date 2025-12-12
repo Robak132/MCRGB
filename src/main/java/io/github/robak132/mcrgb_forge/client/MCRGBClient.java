@@ -6,23 +6,28 @@ import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mojang.blaze3d.platform.InputConstants;
-import io.github.robak132.libgui_forge.client.ClothConfigIntegration;
 import io.github.robak132.libgui_forge.client.CottonClientScreen;
 import io.github.robak132.mcrgb_forge.client.analysis.ColorScanner;
 import io.github.robak132.mcrgb_forge.client.analysis.ColorScanner.ScanResult;
-import io.github.robak132.mcrgb_forge.client.analysis.ColorVector;
 import io.github.robak132.mcrgb_forge.client.analysis.Palette;
 import io.github.robak132.mcrgb_forge.client.analysis.SpriteDetails;
 import io.github.robak132.mcrgb_forge.client.gui.ColorsGuiDescription;
+import io.github.robak132.mcrgb_forge.client.integration.ClothConfigIntegration;
+import io.github.robak132.mcrgb_forge.colors.Color.ColorModel;
+import io.github.robak132.mcrgb_forge.colors.RGB;
 import io.github.robak132.mcrgb_forge.config.MCRGBConfig;
 import java.io.File;
 import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.Future;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +39,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.event.TickEvent;
@@ -54,14 +60,11 @@ public class MCRGBClient {
     private static final Minecraft MC = Minecraft.getInstance();
     private static final KeyMapping OPEN_GUI = new KeyMapping(KEY_COLOR_INV_OPEN, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_I, KEY_CATEGORY_MCRGB);
     private static final ColorScanner SCANNER = new ColorScanner();
+    private static final Path CACHE_FILE = Path.of("config", "mcrgb_cache.json");
     private static Future<?> activeScan = null;
     private static boolean scanRequested = false;
-    @Getter
     private static Map<Block, List<SpriteDetails>> lastScan = null;
     private List<Palette> palettes = new ArrayList<>();
-    private int totalBlocks = 0;
-    private int fails = 0;
-    private int successes = 0;
     private boolean scanned = false;
 
     private MCRGBClient() {
@@ -93,30 +96,6 @@ public class MCRGBClient {
 
     public static void removePalette(Palette palette) {
         instance.palettes.remove(palette);
-    }
-
-    public static int getTotalBlocks() {
-        return instance.totalBlocks;
-    }
-
-    public static void setTotalBlocks(int totalBlocks) {
-        instance.totalBlocks = totalBlocks;
-    }
-
-    public static int getFails() {
-        return instance.fails;
-    }
-
-    public static void setFails(int fails) {
-        instance.fails = fails;
-    }
-
-    public static int getSuccesses() {
-        return instance.successes;
-    }
-
-    public static void setSuccesses(int successes) {
-        instance.successes = successes;
     }
 
     public static void writeJson(String str, String path, String fileName) {
@@ -170,7 +149,84 @@ public class MCRGBClient {
 
         if (scanRequested) {
             scanRequested = false;
-            triggerScan();
+
+            // If cache exists, load and open GUI
+            if (loadCacheIfExists()) {
+                openColorsGui();
+            } else {
+                // Otherwise compute fresh data
+                triggerScan();
+            }
+        }
+    }
+
+    public static boolean loadCacheIfExists() {
+        if (!Files.exists(CACHE_FILE)) {
+            return false;
+        }
+
+        try (Reader reader = Files.newBufferedReader(CACHE_FILE)) {
+            Gson gson = new Gson();
+            var type = new TypeToken<Map<String, List<SpriteDetails>>>() {
+            }.getType();
+
+            Map<String, List<SpriteDetails>> raw = gson.fromJson(reader, type);
+            if (raw == null) {
+                return false;
+            }
+
+            var reg = Minecraft.getInstance().level.registryAccess().registryOrThrow(Registries.BLOCK);
+            Map<Block, List<SpriteDetails>> mapped = new HashMap<>();
+
+            for (var e : raw.entrySet()) {
+                try {
+                    ResourceLocation rl = ResourceLocation.parse(e.getKey());
+                    Block b = reg.get(rl);
+                    if (b != null) {
+                        mapped.put(b, e.getValue());
+                    }
+                } catch (Exception ex) {
+                    // malformed key — skip
+                }
+            }
+
+            lastScan = mapped;
+            return !mapped.isEmpty();
+        } catch (Exception e) {
+            System.err.println("MCRGB: Failed to load cache: " + e);
+            return false;
+        }
+    }
+
+    private static void saveCache(Map<Block, List<SpriteDetails>> data) {
+        try {
+            Files.createDirectories(CACHE_FILE.getParent());
+
+            var reg = Minecraft.getInstance().level.registryAccess().registryOrThrow(Registries.BLOCK);
+
+            // Convert Block -> resource string
+            Map<String, List<SpriteDetails>> stringMap = new HashMap<>();
+            for (var e : data.entrySet()) {
+                Block b = e.getKey();
+                try {
+                    // find the registry key for the block
+                    ResourceLocation rl = reg.getKey(b);
+                    if (rl == null) {
+                        // fallback: skip blocks without a registry key (shouldn't happen)
+                        continue;
+                    }
+                    stringMap.put(rl.toString(), e.getValue());
+                } catch (Exception ex) {
+                    // fallback: skip this block
+                }
+            }
+
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            try (Writer writer = Files.newBufferedWriter(CACHE_FILE)) {
+                gson.toJson(stringMap, writer);
+            }
+        } catch (IOException e) {
+            System.err.println("MCRGB: Failed to save cache: " + e);
         }
     }
 
@@ -186,9 +242,6 @@ public class MCRGBClient {
         }
 
         Block block = Block.byItem(event.getItemStack().getItem());
-        if (block == null) {
-            return;
-        }
 
         List<SpriteDetails> sprites = data.get(block);
         if (sprites == null || sprites.isEmpty()) {
@@ -218,22 +271,30 @@ public class MCRGBClient {
         }
     }
 
-    /**
-     * Starts a fresh scan every time.
-     */
     public static void triggerScan() {
         if (activeScan != null && !activeScan.isDone()) {
             return;
         }
 
-        List<Block> blocks = MC.level.registryAccess().registryOrThrow(Registries.BLOCK).entrySet().stream().map(e -> e.getValue()).toList();
+        List<Block> blocks = MC.level.registryAccess().registryOrThrow(Registries.BLOCK).entrySet().stream().map(Entry::getValue).toList();
 
-        activeScan = SCANNER.scanAsync(blocks, result -> MC.execute(() -> openGui(result)),
-                error -> MC.execute(() -> MC.gui.setOverlayMessage(Component.literal("Color scan failed"), false)));
+        activeScan = SCANNER.scanAsync(blocks, result -> MC.execute(() -> onScanComplete(result)),
+                error -> MC.execute(() -> MC.gui.setOverlayMessage(Component.literal("Color scan failed."), false)));
     }
 
-    private static void openGui(ScanResult result) {
+    private static void onScanComplete(ScanResult result) {
         lastScan = result.blockSprites();
-        MC.setScreen(new CottonClientScreen(new ColorsGuiDescription(new ColorVector(255, 255, 255), result.blockSprites())));
+        saveCache(lastScan);
+    }
+
+    public static Map<Block, List<SpriteDetails>> getLastScan() {
+        return lastScan == null ? null : lastScan;
+    }
+
+    private static void openColorsGui() {
+        if (lastScan == null) {
+            return;
+        }
+        MC.setScreen(new CottonClientScreen(new ColorsGuiDescription(new RGB(255, 255, 255), lastScan)));
     }
 }

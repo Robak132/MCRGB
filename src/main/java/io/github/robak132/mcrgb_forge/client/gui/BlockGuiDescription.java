@@ -11,13 +11,18 @@ import io.github.robak132.libgui_forge.widget.WScrollPanel;
 import io.github.robak132.libgui_forge.widget.data.HorizontalAlignment;
 import io.github.robak132.libgui_forge.widget.data.Insets;
 import io.github.robak132.libgui_forge.widget.icon.TextureIcon;
-import io.github.robak132.mcrgb_forge.client.analysis.ColorVector;
-import io.github.robak132.mcrgb_forge.client.analysis.IItemBlockColorSaver;
+import io.github.robak132.mcrgb_forge.client.MCRGBClient;
+import io.github.robak132.mcrgb_forge.client.analysis.SpriteDetails;
 import io.github.robak132.mcrgb_forge.client.gui.widgets.WBlockInfoBox;
 import io.github.robak132.mcrgb_forge.client.gui.widgets.WButtonWithTooltip;
 import io.github.robak132.mcrgb_forge.client.gui.widgets.WPickableTexture;
 import io.github.robak132.mcrgb_forge.client.gui.widgets.WTextureThumbnail;
+import io.github.robak132.mcrgb_forge.colors.Color;
+import io.github.robak132.mcrgb_forge.colors.Color.ColorModel;
+import io.github.robak132.mcrgb_forge.colors.RGB;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -26,6 +31,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 
 public class BlockGuiDescription extends AbstractGuiDescription {
 
@@ -36,8 +42,7 @@ public class BlockGuiDescription extends AbstractGuiDescription {
     WGridPanel textureThumbs = new WGridPanel();
     ArrayList<TextureAtlasSprite> spritesAL = new ArrayList<>();
 
-
-    public BlockGuiDescription(ItemStack stack, ColorVector launchColor, ColorsGuiDescription parent) {
+    public BlockGuiDescription(ItemStack stack, RGB launchColor) {
         ResourceLocation backIdentifier = ResourceLocation.fromNamespaceAndPath(MOD_ID, "back.png");
         TextureIcon backIcon = new TextureIcon(backIdentifier);
         WButton backButton = new WButtonWithTooltip(backIcon, Component.translatable("ui.mcrgb_forge.back_info"));
@@ -59,9 +64,9 @@ public class BlockGuiDescription extends AbstractGuiDescription {
         backButton.setIconSize(18);
         backButton.setAlignment(HorizontalAlignment.LEFT);
 
-        backButton.setOnClick(() -> Minecraft.getInstance().setScreen(new CottonClientScreen(parent)));
+        backButton.setOnClick(this::back);
 
-        infoBox = new WBlockInfoBox(Direction.Plane.VERTICAL, (IItemBlockColorSaver) stack.getItem(), this);
+        infoBox = new WBlockInfoBox(Direction.Plane.VERTICAL, stack.getItem(), (color) -> this.setColor(new RGB(color)));
         infoScrollPanel = new WScrollPanel(infoBox);
 
         mainPanel.add(this.infoScrollPanel, 11, 3, 7, 9);
@@ -100,19 +105,25 @@ public class BlockGuiDescription extends AbstractGuiDescription {
 
     public void hexTyped(String value) {
         try {
-            ColorVector color = new ColorVector(value);
+            RGB color = new RGB(value);
             if (!hexInput.isFocused()) {
                 return;
             }
-            if (value.equals(inputColor.getHex())) {
+            if (value.equals(inputColor.toHexString())) {
                 return;
             }
 
             inputColor = color;
-            colorDisplay.setOpaqueTint(inputColor.asInt());
+            colorDisplay.setOpaqueTint(inputColor.argb());
         } catch (Exception e) {
             // Ignored
         }
     }
 
+    private void back() {
+        Map<Block, List<SpriteDetails>> lastScan = MCRGBClient.getLastScan();
+        if (lastScan != null) {
+            Minecraft.getInstance().setScreen(new CottonClientScreen(new ColorsGuiDescription(inputColor.toRGB(), lastScan)));
+        }
+    }
 }

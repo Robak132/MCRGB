@@ -1,9 +1,9 @@
 package io.github.robak132.mcrgb_forge.client.gui.widgets;
 
-import io.github.robak132.mcrgb_forge.client.analysis.ColorVector;
 import io.github.robak132.libgui_forge.widget.WLabel;
 import io.github.robak132.libgui_forge.widget.data.InputResult;
 import io.github.robak132.mcrgb_forge.client.gui.AbstractGuiDescription;
+import io.github.robak132.mcrgb_forge.colors.RGB;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -12,15 +12,17 @@ import net.minecraft.network.chat.Style;
 import java.util.List;
 
 public class WClickableLabel extends WLabel {
-    ColorVector color;
-    AbstractGuiDescription gui;
     Component textUnhovered = text;
     MutableComponent textHovered = Component.empty();
+    Runnable onClick;
 
-    public WClickableLabel(Component text, ColorVector color, AbstractGuiDescription gui) {
+    public WClickableLabel(Component text) {
+        this(text, null);
+    }
+
+    public WClickableLabel(Component text, Runnable onClick) {
         super(text);
-        this.color = color;
-        this.gui = gui;
+        this.onClick = onClick;
 
         List<Component> components = text.toFlatList(Style.EMPTY.withItalic(true).withUnderlined(true));
         List<Component> componentsBase = text.toFlatList(Style.EMPTY);
@@ -35,7 +37,9 @@ public class WClickableLabel extends WLabel {
 
     @Override
     public InputResult onClick(int x, int y, int button) {
-        gui.setColor(color);
+        if (onClick != null) {
+            onClick.run();
+        }
         return super.onClick(x, y, button);
     }
 
@@ -49,6 +53,10 @@ public class WClickableLabel extends WLabel {
             setText(textUnhovered);
         }
 
+    }
+
+    public void setOnClick(Runnable onClick) {
+        this.onClick = onClick;
     }
 }
 

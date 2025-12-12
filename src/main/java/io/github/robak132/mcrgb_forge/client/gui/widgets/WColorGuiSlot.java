@@ -5,10 +5,12 @@ import io.github.robak132.libgui_forge.client.ScreenDrawing;
 import io.github.robak132.libgui_forge.widget.TooltipBuilder;
 import io.github.robak132.libgui_forge.widget.WWidget;
 import io.github.robak132.libgui_forge.widget.data.InputResult;
-import io.github.robak132.mcrgb_forge.client.analysis.IItemBlockColorSaver;
-import io.github.robak132.mcrgb_forge.config.MCRGBConfig;
+import io.github.robak132.mcrgb_forge.client.MCRGBClient;
+import io.github.robak132.mcrgb_forge.client.analysis.SpriteDetails;
 import io.github.robak132.mcrgb_forge.client.gui.ColorsGuiDescription;
+import io.github.robak132.mcrgb_forge.config.MCRGBConfig;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -20,6 +22,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraftforge.registries.ForgeRegistries;
 
 
@@ -85,23 +88,51 @@ public class WColorGuiSlot extends WWidget {
     @Override
     public void addTooltip(TooltipBuilder tooltip) {
         tooltip.add(Component.translatable(stack.getDescriptionId()));
-        IItemBlockColorSaver item = (IItemBlockColorSaver) stack.getItem();
-        for (int i = 0; i < item.mcrgb_forge$getLength(); i++) {
-            List<String> strings = item.mcrgb_forge$getSpriteDetails(i).getStrings();
-            List<Integer> colors = item.mcrgb_forge$getSpriteDetails(i).getTextColors();
-            if (!strings.isEmpty()) {
-                for (int j = 0; j < strings.size(); j++) {
-                    var text = Component.literal(strings.get(j)).withStyle(ChatFormatting.GRAY);
-                    MutableComponent text2 = (MutableComponent) Component.literal("⬛").toFlatList(Style.EMPTY.withColor(colors.get(j))).get(0);
-                    if (j > 0) {
-                        text2.append(text);
-                    } else {
-                        text2 = text.withStyle(ChatFormatting.DARK_GRAY);
-                    }
 
-                    tooltip.add(text2);
+        // Convert item to block
+        Block block = Block.byItem(stack.getItem());
+
+        // Get the latest scan data
+        Map<Block, List<SpriteDetails>> scan = MCRGBClient.getLastScan();
+        if (scan == null) {
+            return;
+        }
+
+        List<SpriteDetails> details = scan.get(block);
+        if (details == null || details.isEmpty()) {
+            return;
+        }
+
+        // Build tooltip output
+        for (SpriteDetails sd : details) {
+
+            List<String> strings = sd.getStrings();
+            List<Integer> colors = sd.getTextColors();
+            if (strings.isEmpty()) {
+                continue;
+            }
+
+            for (int i = 0; i < strings.size(); i++) {
+                String label = strings.get(i);
+                int col = colors.get(i);
+
+                // Gray descriptive text
+                MutableComponent text = Component.literal(label).withStyle(ChatFormatting.GRAY);
+
+                // Color block (⬛)
+                MutableComponent colorBox = Component.literal("⬛").withStyle(Style.EMPTY.withColor(col));
+
+                // First line → title
+                MutableComponent out;
+                if (i == 0) {
+                    out = text.withStyle(ChatFormatting.DARK_GRAY);
+                } else {
+                    out = colorBox.append(text);
                 }
+
+                tooltip.add(out);
             }
         }
     }
+
 }
