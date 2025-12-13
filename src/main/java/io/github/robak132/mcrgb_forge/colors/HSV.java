@@ -1,8 +1,8 @@
 package io.github.robak132.mcrgb_forge.colors;
 
-public final class HSV implements Color {
+public final class HSV extends Color {
 
-    private final int alpha, h, s, v;
+    private final int h, s, v;
 
     public HSV(int alpha, int h, int s, int v) {
         this.alpha = alpha & 0xFF;
@@ -68,18 +68,28 @@ public final class HSV implements Color {
     public int hue() {
         return h;
     }
+
     public int saturation() {
         return s;
     }
+
     public int value() {
         return v;
     }
-    public int alpha() {
-        return alpha;
+
+    @Override
+    public Number ch0() {
+        return h;
     }
 
     @Override
-    public Number[] values() {
-        return new Number[] { alpha, h, s, v };
+    public Number ch1() {
+        return s;
     }
+
+    @Override
+    public Number ch2() {
+        return v;
+    }
+
 }

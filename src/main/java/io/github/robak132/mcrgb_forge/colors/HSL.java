@@ -1,8 +1,8 @@
 package io.github.robak132.mcrgb_forge.colors;
 
-public final class HSL implements Color {
+public final class HSL extends Color {
 
-    private final int alpha, h, s, l;
+    private final int h, s, l;
 
     public HSL(int alpha, int h, int s, int l) {
         this.alpha = alpha & 0xFF;
@@ -61,6 +61,21 @@ public final class HSL implements Color {
     }
 
     @Override
+    public Number ch0() {
+        return h;
+    }
+
+    @Override
+    public Number ch1() {
+        return s;
+    }
+
+    @Override
+    public Number ch2() {
+        return l;
+    }
+
+    @Override
     public HSL toHSL() {
         return this;
     }
@@ -77,12 +92,5 @@ public final class HSL implements Color {
         return l;
     }
 
-    public int alpha() {
-        return alpha;
-    }
 
-    @Override
-    public Number[] values() {
-        return new Number[] { alpha, h, s, l };
-    }
 }

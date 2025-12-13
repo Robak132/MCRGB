@@ -1,12 +1,14 @@
 package io.github.robak132.mcrgb_forge.client.gui.widgets;
 
 import io.github.robak132.libgui_forge.LibGui;
+import io.github.robak132.libgui_forge.client.CottonClientScreen;
 import io.github.robak132.libgui_forge.client.ScreenDrawing;
 import io.github.robak132.libgui_forge.widget.TooltipBuilder;
 import io.github.robak132.libgui_forge.widget.WWidget;
 import io.github.robak132.libgui_forge.widget.data.InputResult;
 import io.github.robak132.mcrgb_forge.client.MCRGBClient;
 import io.github.robak132.mcrgb_forge.client.analysis.SpriteDetails;
+import io.github.robak132.mcrgb_forge.client.gui.BlockGuiDescription;
 import io.github.robak132.mcrgb_forge.client.gui.ColorsGuiDescription;
 import io.github.robak132.mcrgb_forge.config.MCRGBConfig;
 import java.util.List;
@@ -69,7 +71,7 @@ public class WColorGuiSlot extends WWidget {
                 break;
             case 1:
                 if (stack.getItem() instanceof BlockItem) {
-                    parentGui.openBlockInfoGui(stack);
+                    Minecraft.getInstance().setScreen(new CottonClientScreen(new BlockGuiDescription(stack, parentGui.activeColor.toRGB())));
                 }
                 break;
             case 2:

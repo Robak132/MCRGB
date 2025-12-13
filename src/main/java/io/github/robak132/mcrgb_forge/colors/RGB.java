@@ -1,8 +1,6 @@
 package io.github.robak132.mcrgb_forge.colors;
 
-public final class RGB implements Color {
-
-    private final int alpha;
+public final class RGB extends Color {
     private final int r, g, b;
 
     public RGB(int r, int g, int b) {
@@ -14,15 +12,6 @@ public final class RGB implements Color {
         this.r = r & 0xFF;
         this.g = g & 0xFF;
         this.b = b & 0xFF;
-    }
-
-    public RGB(String hex) {
-        if (!hex.startsWith("#")) hex = "#" + hex;
-        int rgb = Integer.parseInt(hex.substring(1), 16);
-        this.alpha = 255;
-        this.r = (rgb >> 16) & 0xFF;
-        this.g = (rgb >> 8) & 0xFF;
-        this.b = rgb & 0xFF;
     }
 
     public RGB(int argb) {
@@ -99,11 +88,11 @@ public final class RGB implements Color {
         return new HSL(alpha, Math.round(h), Math.round(s * 100), Math.round(l * 100));
     }
 
-    public LAB toLAB() {
+    public OkLAB toOkLAB() {
         // to linear RGB
-        float lr = LAB.sRGBToLinear(r);
-        float lg = LAB.sRGBToLinear(g);
-        float lb = LAB.sRGBToLinear(b);
+        float lr = OkLAB.sRGBToLinear(r);
+        float lg = OkLAB.sRGBToLinear(g);
+        float lb = OkLAB.sRGBToLinear(b);
 
         // linear RGB -> LMS
         float l = 0.4122214708f * lr + 0.5363325363f * lg + 0.0514459929f * lb;
@@ -120,16 +109,34 @@ public final class RGB implements Color {
         float a_i = 1.9779984951f * l_ - 2.4285922050f * m_ + 0.4505937099f * s_;
         float b_1 = 0.0259040371f * l_ + 0.7827717662f * m_ - 0.8086757660f * s_;
 
-        return new LAB(alpha, L_i, a_i, b_1);
+        return new OkLAB(alpha, L_i, a_i, b_1);
     }
 
-    public int red()   { return r; }
-    public int green() { return g; }
-    public int blue()  { return b; }
-    public int alpha() { return alpha; }
+    public int red() {
+        return r;
+    }
+
+    public int green() {
+        return g;
+    }
+
+    public int blue() {
+        return b;
+    }
 
     @Override
-    public Number[] values() {
-        return new Number[] { alpha, r, g, b };
+    public Number ch0() {
+        return r;
     }
+
+    @Override
+    public Number ch1() {
+        return g;
+    }
+
+    @Override
+    public Number ch2() {
+        return b;
+    }
+
 }

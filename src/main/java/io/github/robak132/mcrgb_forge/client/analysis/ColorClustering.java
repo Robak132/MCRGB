@@ -1,6 +1,6 @@
 package io.github.robak132.mcrgb_forge.client.analysis;
 
-import io.github.robak132.mcrgb_forge.colors.LAB;
+import io.github.robak132.mcrgb_forge.colors.OkLAB;
 import io.github.robak132.mcrgb_forge.colors.RGB;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,14 +38,14 @@ public final class ColorClustering {
         final int n = sample.size();
         final int clusters = Math.min(k, n);
 
-        LAB[] lab = new LAB[n];
+        OkLAB[] okLab = new OkLAB[n];
         for (int i = 0; i < n; i++) {
             RGB cv = sample.get(i);
-            lab[i] = cv.toLAB();
+            okLab[i] = cv.toOkLAB();
         }
 
         RandomSource rnd = RandomSource.create();
-        List<LAB> centers = new ArrayList<>(clusters);
+        List<OkLAB> centers = new ArrayList<>(clusters);
         boolean[] used = new boolean[n];
         for (int i = 0; i < clusters; i++) {
             int idx;
@@ -53,7 +53,7 @@ public final class ColorClustering {
                 idx = rnd.nextInt(n);
             } while (used[idx]);
             used[idx] = true;
-            centers.add(new LAB(lab[idx]));
+            centers.add(new OkLAB(okLab[idx]));
         }
 
         int[] assignments = new int[n];
@@ -66,7 +66,7 @@ public final class ColorClustering {
             for (int i = 0; i < n; i++) {
                 double bestDist = Double.MAX_VALUE;
                 int best = 0;
-                LAB p = lab[i];
+                OkLAB p = okLab[i];
                 for (int c = 0; c < centers.size(); c++) {
                     double d = p.distanceWeighted(centers.get(c));
                     if (d < bestDist) {
@@ -85,16 +85,16 @@ public final class ColorClustering {
             float[][] sums = new float[clusters][3];
             for (int i = 0; i < n; i++) {
                 int c = assignments[i];
-                LAB p = lab[i];
+                OkLAB p = okLab[i];
                 counts[c]++;
 
-                sums[c][0] += p.L();
-                sums[c][1] += p.a();
-                sums[c][2] += p.b();
+                sums[c][0] += p.lightness();
+                sums[c][1] += p.greenRedAxis();
+                sums[c][2] += p.blueYellowAxis();
             }
             for (int c = 0; c < clusters; c++) {
                 if (counts[c] > 0) {
-                    centers.set(c, new LAB(255, sums[c][0] / counts[c], sums[c][1] / counts[c], sums[c][2] / counts[c]));
+                    centers.set(c, new OkLAB(255, sums[c][0] / counts[c], sums[c][1] / counts[c], sums[c][2] / counts[c]));
                 }
             }
         }
@@ -102,7 +102,7 @@ public final class ColorClustering {
         List<SpriteColor> result = new ArrayList<>();
         float[] fullCounts = new float[clusters];
         for (RGB cv : pixels) {
-            LAB p = cv.toLAB();
+            OkLAB p = cv.toOkLAB();
             int best = 0;
             double bestD = Float.MAX_VALUE;
 
@@ -125,7 +125,7 @@ public final class ColorClustering {
             if (fullCounts[c] == 0) {
                 continue;
             }
-            LAB center = centers.get(c);
+            OkLAB center = centers.get(c);
             RGB mean = center.toRGB();
             int weight = Math.round((fullCounts[c] / totalWeight) * 100f);
             result.add(new SpriteColor(mean, weight));

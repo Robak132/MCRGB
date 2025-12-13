@@ -64,7 +64,6 @@ public class MCRGBClient {
     public static void init() {
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         bus.addListener(ClothConfigIntegration::init);
-
     }
 
     @SubscribeEvent

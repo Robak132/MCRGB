@@ -27,7 +27,7 @@ public class WColorPreviewIcon extends WSprite {
         switch (button) {
             case 0:
                 if (!interactable) return InputResult.PROCESSED;
-                color = gui.getColor();
+                color = gui.activeColor.argb();
                 setOpaqueTint(color);
                 break;
             case 1:
