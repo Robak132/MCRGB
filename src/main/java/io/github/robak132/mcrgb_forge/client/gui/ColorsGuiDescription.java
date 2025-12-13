@@ -61,9 +61,6 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
     private final WLabel bLabel = new WLabel(Component.translatable("ui.mcrgb_forge.b_for_blue"), 0xFF0000FF);
     private final WSlider bSlider = new WSlider(0, 255, Direction.Plane.VERTICAL);
     private final WSmartTextField bInput = new WSmartTextField(Component.empty());
-    private final WButton rgbButton = new WButton(Component.translatable("ui.mcrgb_forge.rgb"));
-    private final WButton hsvButton = new WButton(Component.translatable("ui.mcrgb_forge.hsv"));
-    private final WButton hslButton = new WButton(Component.translatable("ui.mcrgb_forge.hsl"));
     private final ItemStack helmet = new ItemStack(Items.LEATHER_HELMET);
     private final ItemStack chestplate = new ItemStack(Items.LEATHER_CHESTPLATE);
     private final ItemStack leggings = new ItemStack(Items.LEATHER_LEGGINGS);
@@ -77,22 +74,26 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
     private final WPlainPanel inputs = new WPlainPanel();
     private final WGridPanel armourSlots = new WGridPanel();
     private final WColorScrollBar scrollBar = new WColorScrollBar(this::placeSlots);
+    private boolean initialized = false;
 
     public ColorsGuiDescription(RGB launchColor, Map<Block, List<SpriteDetails>> blockSpriteMap) {
-        this.blockSpriteMap = blockSpriteMap;
+        this.blockSpriteMap = Map.copyOf(blockSpriteMap);
 
         WButtonWithTooltip refreshButton = new WButtonWithTooltip(new TextureIcon(ResourceLocation.fromNamespaceAndPath(MOD_ID, "refresh.png")),
                 Component.translatable("ui.mcrgb_forge.refresh_info"));
+
         WButton settingsButton = new WButton(new TextureIcon(ResourceLocation.fromNamespaceAndPath(MOD_ID, "settings.png")));
-        colorSort();
+
         setRootPanel(root);
         root.add(mainPanel, 0, 0);
         mainPanel.setSize(320, 220);
         mainPanel.setInsets(Insets.ROOT_PANEL);
+
         mainPanel.add(hexInput, 11, 1, 5, 1);
         mainPanel.add(colorDisplay, 16, 1, 2, 2);
         colorDisplay.setLocation(colorDisplay.getAbsoluteX() + 1, colorDisplay.getAbsoluteY() - 1);
         mainPanel.add(scrollBar, 9, 1, 1, SLOTS_HEIGHT - 1);
+
         mainPanel.add(refreshButton, 17, 11, 1, 1);
         refreshButton.setSize(20, 20);
         refreshButton.setIconSize(18);
@@ -104,25 +105,41 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
 
         mainPanel.add(searchField, 6, 0, 4, 1);
         searchField.setSize(4 * 18, 11);
+        searchField.setChangedListener(v -> colorSort());
 
         mainPanel.add(settingsButton, 17, 0, 1, 1);
         settingsButton.setSize(20, 20);
         settingsButton.setIconSize(18);
         settingsButton.setAlignment(HorizontalAlignment.LEFT);
 
+        if (ModList.get().isLoaded("cloth_config")) {
+            settingsButton.setOnClick(() -> Minecraft.getInstance().setScreen(ClothConfigIntegration.getConfigScreen(Minecraft.getInstance().screen)));
+        } else {
+            settingsButton.setOnClick(() -> displayClientLocalisedMessage("warning.mcrgb_forge.noclothconfig"));
+        }
+
+        WButton rgbButton = new WButton(Component.translatable("ui.mcrgb_forge.rgb"));
         mainPanel.add(rgbButton, 10, 11, 1, 1);
         rgbButton.setLocation(201, 205);
         rgbButton.setSize(26, 20);
         rgbButton.setEnabled(false);
         rgbButton.setAlignment(HorizontalAlignment.CENTER);
+
+        WButton hsvButton = new WButton(Component.translatable("ui.mcrgb_forge.hsv"));
         mainPanel.add(hsvButton, 13, 11, 1, 1);
         hsvButton.setLocation(237, 205);
         hsvButton.setSize(26, 20);
         hsvButton.setAlignment(HorizontalAlignment.CENTER);
+
+        WButton hslButton = new WButton(Component.translatable("ui.mcrgb_forge.hsl"));
         mainPanel.add(hslButton, 15, 11, 1, 1);
         hslButton.setLocation(273, 205);
         hslButton.setSize(26, 20);
         hslButton.setAlignment(HorizontalAlignment.CENTER);
+
+        rgbButton.setOnClick(() -> setColor(ColorModel.RGB));
+        hsvButton.setOnClick(() -> setColor(ColorModel.HSV));
+        hslButton.setOnClick(() -> setColor(ColorModel.HSL));
 
         mainPanel.add(new WLabel(Component.translatable("ui.mcrgb_forge.header")), 0, 0, 2, 1);
         mainPanel.add(savedPalettesArea, 0, SLOTS_HEIGHT);
@@ -131,6 +148,7 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
         mainPanel.add(rLabel, 6, 7, 1, 1);
         mainPanel.add(gLabel, 6, 7, 1, 1);
         mainPanel.add(bLabel, 6, 7, 1, 1);
+
         rLabel.setLocation(211, 50);
         gLabel.setLocation(247, 50);
         bLabel.setLocation(283, 50);
@@ -152,30 +170,12 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
         gSlider.setDraggingFinishedListener(v -> colorSort());
         bSlider.setDraggingFinishedListener(v -> colorSort());
 
-        wheelValueSlider.setValueChangeListener((int value) -> {
-            colorWheel.setOpaqueTint(new RGB(255, value, value, value).argb());
-            colorWheel.pickAtCursor();
-        });
-
         rInput.setCommitListener(this::onValueEntered);
         gInput.setCommitListener(this::onValueEntered);
         bInput.setCommitListener(this::onValueEntered);
         hexInput.setCommitListener(this::onHexEntered);
-        searchField.setChangedListener((v) -> colorSort());
 
-        rgbButton.setOnClick(() -> setColor(ColorModel.RGB));
-        hsvButton.setOnClick(() -> setColor(ColorModel.HSV));
-        hslButton.setOnClick(() -> setColor(ColorModel.HSL));
-
-        colorWheelToggle.setOnToggle(this::toggleColorWheel);
-
-        if (ModList.get().isLoaded("cloth_config")) {
-            settingsButton.setOnClick(() -> Minecraft.getInstance().setScreen(ClothConfigIntegration.getConfigScreen(Minecraft.getInstance().screen)));
-        } else {
-            settingsButton.setOnClick(() -> displayClientLocalisedMessage("warning.mcrgb_forge.noclothconfig"));
-        }
         mainPanel.add(armourSlots, 17, 3);
-
         armourSlots.add(new WColorGuiSlot(helmet, this), 0, 0);
         armourSlots.add(new WColorGuiSlot(chestplate, this), 0, 1);
         armourSlots.add(new WColorGuiSlot(leggings, this), 0, 2);
@@ -184,75 +184,34 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
 
         colorWheelToggle.setOffImage(new Texture(ResourceLocation.fromNamespaceAndPath(MOD_ID, "wheel_small.png")));
         colorWheelToggle.setOnImage(new Texture(ResourceLocation.fromNamespaceAndPath(MOD_ID, "sliders.png")));
+        colorWheelToggle.setOnToggle(this::toggleColorWheel);
         mainPanel.add(colorWheelToggle, 17, 10);
         colorWheelToggle.setLocation(314, 180);
 
+        wheelValueSlider.setValueChangeListener(value -> {
+            colorWheel.setOpaqueTint(new RGB(255, value, value, value).argb());
+            colorWheel.pickAtCursor();
+        });
+
         mainPanel.validate(this);
         root.validate(this);
+
+        Minecraft.getInstance().execute(() -> deferredInit(launchColor));
+    }
+
+    private void deferredInit(RGB launchColor) {
+        if (initialized) return;
+        initialized = true;
         setColor(launchColor);
-        updateArmour();
     }
 
     @Override
     public void setColor(Color color, ColorModel model) {
         super.setColor(color, model);
         lockWidgets(() -> {
-            switch (this.activeColorModel) {
-                case RGB:
-                    rLabel.setText(Component.translatable("ui.mcrgb_forge.r_for_red"));
-                    rLabel.setColor(0xFFFF0000);
-                    gLabel.setText(Component.translatable("ui.mcrgb_forge.g_for_green"));
-                    gLabel.setColor(0xFF00FF00);
-                    bLabel.setText(Component.translatable("ui.mcrgb_forge.b_for_blue"));
-                    bLabel.setColor(0xFF0000FF);
-                    rSlider.setMinValue(0);
-                    gSlider.setMinValue(0);
-                    bSlider.setMinValue(0);
-                    rSlider.setMaxValue(255);
-                    gSlider.setMaxValue(255);
-                    bSlider.setMaxValue(255);
-                    rgbButton.setEnabled(false);
-                    hsvButton.setEnabled(true);
-                    hslButton.setEnabled(true);
-                    break;
-                case HSV:
-                    rLabel.setText(Component.translatable("ui.mcrgb_forge.h_for_hue_hsv"));
-                    rLabel.setColor(0xFF3F3F3F);
-                    gLabel.setText(Component.translatable("ui.mcrgb_forge.s_for_sat_hsv"));
-                    gLabel.setColor(0xFF3F3F3F);
-                    bLabel.setText(Component.translatable("ui.mcrgb_forge.v_for_val_hsv"));
-                    bLabel.setColor(0xFF3F3F3F);
-                    rSlider.setMinValue(0);
-                    gSlider.setMinValue(0);
-                    bSlider.setMinValue(0);
-                    rSlider.setMaxValue(360);
-                    gSlider.setMaxValue(100);
-                    bSlider.setMaxValue(100);
-                    rgbButton.setEnabled(true);
-                    hsvButton.setEnabled(false);
-                    hslButton.setEnabled(true);
-                    break;
-                case HSL:
-                    rLabel.setText(Component.translatable("ui.mcrgb_forge.h_for_hue_hsl"));
-                    rLabel.setColor(0xFF3F3F3F);
-                    gLabel.setText(Component.translatable("ui.mcrgb_forge.s_for_sat_hsl"));
-                    gLabel.setColor(0xFF3F3F3F);
-                    bLabel.setText(Component.translatable("ui.mcrgb_forge.l_for_lit_hsl"));
-                    bLabel.setColor(0xFF3F3F3F);
-                    rSlider.setMinValue(0);
-                    gSlider.setMinValue(0);
-                    bSlider.setMinValue(0);
-                    rSlider.setMaxValue(360);
-                    gSlider.setMaxValue(100);
-                    bSlider.setMaxValue(100);
-                    rgbButton.setEnabled(true);
-                    hsvButton.setEnabled(true);
-                    hslButton.setEnabled(false);
-                    break;
-            }
             scrollBar.setValue(0);
             refreshComponents();
-        }, (e) -> log.error("Error refreshing color components", e));
+        }, e -> log.error("Error refreshing color components", e));
     }
 
     private void onSliderValueChange(int value) {
@@ -260,30 +219,31 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
     }
 
     private void onValueEntered(String value) {
-        Integer rInputValue = stringToInt(rInput.getText());
-        Integer gInputValue = stringToInt(gInput.getText());
-        Integer bInputValue = stringToInt(bInput.getText());
+        Integer r = stringToInt(rInput.getText());
+        Integer g = stringToInt(gInput.getText());
+        Integer b = stringToInt(bInput.getText());
 
-        if (rInputValue != null && gInputValue != null && bInputValue != null) {
-            switch (activeColorModel) {
-                case RGB -> {
-                    rInputValue = Mth.clamp(rInputValue, 0, 255);
-                    gInputValue = Mth.clamp(gInputValue, 0, 255);
-                    bInputValue = Mth.clamp(bInputValue, 0, 255);
-                }
-                case HSV, HSL -> {
-                    rInputValue = Mth.clamp(rInputValue, 0, 360);
-                    gInputValue = Mth.clamp(gInputValue, 0, 100);
-                    bInputValue = Mth.clamp(bInputValue, 0, 100);
-                }
+        if (r == null || g == null || b == null) return;
+
+        switch (activeColorModel) {
+            case RGB -> {
+                r = Mth.clamp(r, 0, 255);
+                g = Mth.clamp(g, 0, 255);
+                b = Mth.clamp(b, 0, 255);
             }
-            setColor(Color.create(activeColorModel, rInputValue, gInputValue, bInputValue));
+            case HSV, HSL -> {
+                r = Mth.clamp(r, 0, 360);
+                g = Mth.clamp(g, 0, 100);
+                b = Mth.clamp(b, 0, 100);
+            }
         }
+
+        setColor(Color.create(activeColorModel, r, g, b));
     }
 
     private void onHexEntered(String value) {
-        Integer valueInt = hexToInt(value);
-        if (valueInt != null) setColor(new RGB(valueInt));
+        Integer v = hexToInt(value);
+        if (v != null) setColor(new RGB(v));
     }
 
     private void refreshComponents() {
@@ -300,13 +260,12 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
 
         updateArmour();
         colorSort();
-        placeSlots();
 
         if (colorWheelToggle.getToggle()) {
-                RGB rgb = activeColor.toRGB();
-                int val = Math.max(Math.max(rgb.red(), rgb.green()), rgb.blue());
-                colorWheel.setOpaqueTint(new RGB(val, val, val).argb());
-            }
+            RGB rgb = activeColor.toRGB();
+            int val = Math.max(Math.max(rgb.red(), rgb.green()), rgb.blue());
+            colorWheel.setOpaqueTint(new RGB(val, val, val).argb());
+        }
     }
 
     private void updateArmour() {
@@ -319,12 +278,12 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
         leggings.getOrCreateTagElement(DISPLAY).putInt(COLOR, hexInt);
         boots.getOrCreateTagElement(DISPLAY).putInt(COLOR, hexInt);
         horse.getOrCreateTagElement(DISPLAY).putInt(COLOR, hexInt);
-        colorDisplay.setOpaqueTint(hexInt);
     }
 
     private void colorSort() {
         stacks.clear();
         Map<Block, Double> blockScores = new HashMap<>();
+
         ForgeRegistries.BLOCKS.forEach(block -> {
             List<SpriteDetails> sprites = blockSpriteMap.get(block);
             if (sprites == null || sprites.isEmpty()) return;
@@ -332,9 +291,11 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
             double score = scoreBlock(activeColor, sprites);
             blockScores.put(block, score);
 
-            if (block.getName().getString().toUpperCase().contains(searchField.getText().toUpperCase())) stacks.add(new ItemStack(block));
-
+            if (block.getName().getString().toUpperCase().contains(searchField.getText().toUpperCase())) {
+                stacks.add(new ItemStack(block));
+            }
         });
+
         stacks.sort((a, b) -> {
             Block blA = Block.byItem(a.getItem());
             Block blB = Block.byItem(b.getItem());
@@ -350,22 +311,26 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
 
     private void placeSlots() {
         wColorGuiSlots.forEach(mainPanel::remove);
+
         int index = SLOTS_WIDTH * scrollBar.getValue();
+
         for (int j = 1; j < SLOTS_HEIGHT; j++) {
             for (int i = 0; i < SLOTS_WIDTH; i++) {
                 if (index >= stacks.size()) break;
-                WColorGuiSlot colorGuiSlot = new WColorGuiSlot(stacks.get(index), this);
+
+                WColorGuiSlot slot = new WColorGuiSlot(stacks.get(index), this);
 
                 if (wColorGuiSlots.size() <= index) {
-                    wColorGuiSlots.add(colorGuiSlot);
+                    wColorGuiSlots.add(slot);
                 } else {
-                    wColorGuiSlots.set(index, colorGuiSlot);
+                    wColorGuiSlots.set(index, slot);
                 }
-                mainPanel.add(colorGuiSlot, i, j);
-                index++;
 
+                mainPanel.add(slot, i, j);
+                index++;
             }
         }
+
         mainPanel.validate(this);
     }
 
@@ -373,23 +338,25 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
         if (isToggled) {
             mainPanel.remove(sliderArea);
 
-            //Remove and re-add inputs to workaround visual bug in 1.20.1 only
             mainPanel.remove(rLabel);
             mainPanel.remove(gLabel);
             mainPanel.remove(bLabel);
             mainPanel.add(rLabel, 1, 1, 1, 1);
             mainPanel.add(gLabel, 1, 1, 1, 1);
             mainPanel.add(bLabel, 1, 1, 1, 1);
+
             mainPanel.remove(inputs);
             mainPanel.add(inputs, 10, 9, 2, 1);
 
             mainPanel.remove(armourSlots);
             mainPanel.add(colorWheel, 11, 2, 6, 6);
             mainPanel.add(wheelValueSlider, 17, 2, 1, 6);
+
             wheelValueSlider.setValue(wheelValueSlider.getMaxValue());
             colorWheel.setLocation(198, 47);
             wheelValueSlider.setLocation(314, 47);
             wheelValueSlider.setSize(18, 128);
+
             rLabel.setLocation(211, 165);
             gLabel.setLocation(247, 165);
             bLabel.setLocation(283, 165);
@@ -398,11 +365,12 @@ public class ColorsGuiDescription extends AbstractGuiDescription {
             mainPanel.add(armourSlots, 17, 3);
             mainPanel.remove(colorWheel);
             mainPanel.remove(wheelValueSlider);
+
             rLabel.setLocation(211, 50);
             gLabel.setLocation(247, 50);
             bLabel.setLocation(283, 50);
-
         }
+
         root.validate(this);
     }
 

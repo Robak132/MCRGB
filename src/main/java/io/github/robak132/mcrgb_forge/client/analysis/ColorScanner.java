@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -21,6 +22,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.client.extensions.IForgeBakedModel;
 import net.minecraftforge.client.model.data.ModelData;
+import net.minecraftforge.registries.ForgeRegistries;
 
 @Slf4j
 public class ColorScanner {
@@ -33,16 +35,41 @@ public class ColorScanner {
     private final int SAMPLE_LIMIT = 4096;
 
     /**
+     * Extracts all model sprites of a block.
+     */
+    public static Set<TextureAtlasSprite> getSprites(Block block) {
+        Set<TextureAtlasSprite> sprites = new HashSet<>();
+        for (BlockState state : block.getStateDefinition().getPossibleStates()) {
+            IForgeBakedModel model = mc.getBlockRenderer().getBlockModelShaper().getBlockModel(state);
+
+            for (Direction dir : getDirections()) {
+                List<BakedQuad> quads = model.getQuads(state, dir, random, ModelData.EMPTY, null);
+                if (!quads.isEmpty()) {
+                    sprites.add(quads.get(0).getSprite());
+                }
+            }
+        }
+        return sprites;
+    }
+
+    private static List<Direction> getDirections() {
+        List<Direction> dirs = new ArrayList<>(Arrays.asList(Direction.values()));
+        dirs.add(null);
+        return dirs;
+    }
+
+    /**
      * Asynchronously scans blocks.
      */
-    public Future<ScanResult> scanAsync(List<Block> blocks, Consumer<ScanResult> onSuccess, Consumer<Throwable> onError) {
-        return CompletableFuture.supplyAsync(() -> scan(blocks)).whenComplete((result, ex) -> {
-            if (ex == null) {
-                onSuccess.accept(result);
-            } else {
-                onError.accept(ex);
-            }
-        });
+    public Future<ScanResult> scanAsync(Consumer<ScanResult> onSuccess, Consumer<Throwable> onError) {
+        return CompletableFuture.supplyAsync(() -> scan(ForgeRegistries.BLOCKS.getEntries().stream().map(Entry::getValue).toList()))
+                .whenComplete((result, ex) -> {
+                    if (ex == null) {
+                        onSuccess.accept(result);
+                    } else {
+                        onError.accept(ex);
+                    }
+                });
     }
 
     /**
@@ -74,30 +101,6 @@ public class ColorScanner {
     }
 
     /**
-     * Extracts all model sprites of a block.
-     */
-    public static Set<TextureAtlasSprite> getSprites(Block block) {
-        Set<TextureAtlasSprite> sprites = new HashSet<>();
-        for (BlockState state : block.getStateDefinition().getPossibleStates()) {
-            IForgeBakedModel model = mc.getBlockRenderer().getBlockModelShaper().getBlockModel(state);
-
-            for (Direction dir : getDirections()) {
-                List<BakedQuad> quads = model.getQuads(state, dir, random, ModelData.EMPTY, null);
-                if (!quads.isEmpty()) {
-                    sprites.add(quads.get(0).getSprite());
-                }
-            }
-        }
-        return sprites;
-    }
-
-    private static List<Direction> getDirections() {
-        List<Direction> dirs = new ArrayList<>(Arrays.asList(Direction.values()));
-        dirs.add(null);
-        return dirs;
-    }
-
-    /**
      * Extracts visible pixel colors from a sprite.
      */
     private List<RGB> getSpritePixels(TextureAtlasSprite sprite) {
@@ -108,19 +111,14 @@ public class ColorScanner {
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 int argb = sprite.getPixelRGBA(0, x, y);
-                int a = (argb >> 24) & 0xFF;
-                if (a == 0) continue;
-
-                int r = (argb      ) & 0xFF;
-                int g = (argb >> 8 ) & 0xFF;
-                int b = (argb >> 16) & 0xFF;
-
-                pixels.add(new RGB(a, r, g, b));
+                RGB rgb = new RGB(argb);
+                if (rgb.alpha() == 0) continue;
+                pixels.add(rgb);
             }
         }
 
         return pixels;
     }
 
-    public record ScanResult(Map<Block, List<SpriteDetails>> blockSprites) { }
+    public record ScanResult(Map<Block, List<SpriteDetails>> blockSprites) {}
 }

@@ -40,7 +40,8 @@ public abstract class AbstractGuiDescription extends LightweightGuiDescription {
         lockWidgets(() -> {
             this.activeColorModel = model;
             this.activeColor = color.toModel(this.activeColorModel);
-            hexInput.setText(activeColor.toHexString());
+            this.colorDisplay.setOpaqueTint(color.argb());
+            this.hexInput.setText(activeColor.toHexString());
         });
     }
 

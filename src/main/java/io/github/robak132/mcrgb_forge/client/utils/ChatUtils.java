@@ -9,7 +9,7 @@ import net.minecraft.network.chat.Component;
 
 @Slf4j(topic = MOD_ID)
 public abstract class ChatUtils {
-    private static final Minecraft MC = net.minecraft.client.Minecraft.getInstance();
+    private static final Minecraft MC = Minecraft.getInstance();
 
     public static void displayClientLocalisedMessage(String format, Object... args) {
         String localisedText = I18n.get(format, args);
